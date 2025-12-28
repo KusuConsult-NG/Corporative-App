@@ -20,6 +20,7 @@ export default function AuthPage() {
 
     // Registration form state
     const [registerData, setRegisterData] = useState({
+        title: '',
         firstName: '',
         lastName: '',
         email: '',
@@ -84,6 +85,14 @@ export default function AuthPage() {
             return
         }
 
+        // Validate Staff Number format (S followed by 4 digits)
+        const staffNumberPattern = /^S\d{4}$/
+        if (!staffNumberPattern.test(registerData.staffId)) {
+            setErrors({ staffId: 'Staff Number must be in format S1234 (S followed by 4 digits)' })
+            setLoading(false)
+            return
+        }
+
         // Call real register function from auth store with trimmed email
         const { register } = useAuthStore.getState()
         const result = await register({
@@ -115,12 +124,11 @@ export default function AuthPage() {
                         <div className="inline-flex items-center justify-center p-3 bg-white/10 backdrop-blur-md rounded-xl mb-6 border border-white/20 shadow-lg">
                             <Building2 className="text-white" size={32} />
                         </div>
-                        <h1 className="text-4xl xl:text-5xl font-black leading-tight tracking-[-0.033em] mb-4">
-                            Empowering <br />
-                            Unijos Staff
+                        <h1 className="text-3xl xl:text-4xl font-black leading-tight tracking-[-0.033em] mb-4">
+                            Anchorage Welfare Savings and Loans Multipurpose Cooperative Society Limited
                         </h1>
                         <p className="text-lg text-blue-50/90 font-light leading-relaxed max-w-lg">
-                            Exclusive savings and loans platform for the University of Jos community. Secure your future with AWSLMCSL's trusted cooperative services.
+                            Exclusive welfare, savings and loans platform for university community.
                         </p>
                     </div>
 
@@ -140,7 +148,7 @@ export default function AuthPage() {
                 </div>
 
                 <div className="relative z-10 text-xs text-blue-100/60 mt-auto pt-8">
-                    © 2024 Anchorage Welfare Savings and Loans Multipurpose Cooperative Society Limited.
+                    © 2025 Anchorage Welfare Savings and Loans Multipurpose Cooperative Society Limited.
                 </div>
             </div>
 
@@ -237,6 +245,25 @@ export default function AuthPage() {
                     {/* Registration Form */}
                     {mode === 'register' && (
                         <form onSubmit={handleRegister} className="flex flex-col gap-5 mt-2">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-slate-900 dark:text-gray-200 text-sm font-semibold">
+                                    Title <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    value={registerData.title}
+                                    onChange={(e) => setRegisterData({ ...registerData, title: e.target.value })}
+                                    className="w-full px-4 py-3 rounded-lg border border-[#e7edf3] dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                    required
+                                >
+                                    <option value="">Select Title</option>
+                                    <option value="Prof">Prof</option>
+                                    <option value="Dr">Dr</option>
+                                    <option value="Mr">Mr</option>
+                                    <option value="Mrs">Mrs</option>
+                                    <option value="Miss">Miss</option>
+                                </select>
+                            </div>
+
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Input
                                     label="First Name"
@@ -271,12 +298,13 @@ export default function AuthPage() {
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Input
-                                    label="Staff ID"
+                                    label="Staff Number"
                                     type="text"
                                     icon={Hash}
-                                    placeholder="UNIJOS-1234"
+                                    placeholder="S1234"
                                     value={registerData.staffId}
                                     onChange={(e) => setRegisterData({ ...registerData, staffId: e.target.value })}
+                                    error={errors.staffId}
                                     required
                                 />
                                 <Input

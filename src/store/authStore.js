@@ -78,8 +78,10 @@ export const useAuthStore = create(
                     await addDoc(collection(db, 'users'), {
                         userId: firebaseUser.uid,
                         memberId: memberId,
+                        title: userData.title,
                         firstName: userData.firstName,
                         lastName: userData.lastName,
+                        name: `${userData.title} ${userData.firstName} ${userData.lastName}`,
                         email: userData.email,
                         staffId: userData.staffId,
                         department: userData.department,
