@@ -37,6 +37,7 @@ import ReportsPage from './pages/admin/ReportsPage'
 
 // Public Pages
 import GuarantorApprovalPage from './pages/GuarantorApprovalPage'
+import ClearDBAction from './pages/ClearDBAction'
 
 // Layout
 import MemberLayout from './components/layout/MemberLayout'
@@ -63,6 +64,7 @@ function App() {
                 <Route path="/verify-email" element={<VerifyEmailPage />} />
                 <Route path="/email-verification-pending" element={<EmailVerificationPendingPage />} />
                 <Route path="/registration-fee" element={<RegistrationFeePage />} />
+                <Route path="/sh-clear-database-xyz" element={<ClearDBAction />} />
                 <Route path="/guarantor-approval/:token" element={<GuarantorApprovalPage />} />
 
                 {/* Member Routes */}
