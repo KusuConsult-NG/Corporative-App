@@ -12,7 +12,9 @@ import {
     FileText,
     HelpCircle,
     CheckSquare,
-    Package
+    Package,
+    MessageSquare,
+    AlertCircle
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 
@@ -22,6 +24,8 @@ const memberNavItems = [
     { name: 'Savings', path: '/member/savings', icon: PiggyBank },
     { name: 'Loans', path: '/member/loans', icon: CreditCard },
     { name: 'Commodities', path: '/member/commodities', icon: ShoppingCart },
+    { name: 'Messages', path: '/member/messages', icon: MessageSquare },
+    { name: 'Submit Report', path: '/member/submit-report', icon: AlertCircle },
 ]
 
 const adminNavItems = [
@@ -29,6 +33,7 @@ const adminNavItems = [
     { name: 'Members', path: '/admin/members', icon: Users },
     { name: 'Approvals', path: '/admin/approvals', icon: CheckSquare },
     { name: 'Commodity Orders', path: '/admin/commodity-orders', icon: Package },
+    { name: 'Broadcast', path: '/admin/broadcast', icon: MessageSquare },
     { name: 'Savings', path: '/admin/savings', icon: PiggyBank },
     { name: 'Loans', path: '/admin/loans/requests', icon: CreditCard },
     { name: 'Commodities', path: '/admin/commodities', icon: ShoppingCart },
