@@ -23,6 +23,7 @@ import SupportPage from './pages/member/SupportPage'
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminApprovalsPage from './pages/admin/AdminApprovalsPage'
 import LoanRequestsPage from './pages/admin/LoanRequestsPage'
 import MembersPage from './pages/admin/MembersPage'
 import AdminSavingsPage from './pages/admin/AdminSavingsPage'
@@ -75,6 +76,7 @@ function App() {
                 {/* Admin Routes */}
                 <Route path="/admin" element={isAuthenticated && (user?.role === 'admin' || user?.role === 'superadmin') ? <AdminLayout /> : <Navigate to="/auth" />}>
                     <Route path="dashboard" element={<AdminDashboard />} />
+                    <Route path="approvals" element={<AdminApprovalsPage />} />
                     <Route path="loans/requests" element={<LoanRequestsPage />} />
                     <Route path="members" element={<MembersPage />} />
                     <Route path="savings" element={<AdminSavingsPage />} />
