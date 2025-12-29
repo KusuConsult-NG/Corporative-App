@@ -79,7 +79,9 @@ export const emailService = {
                                         <a href="${approvalLink}" class="button">Review & Respond to Request</a>
                                     </p>
 
-                                    <p style="color: #6b7280; font-size: 14px;">This link will expire in 3 days. Please respond as soon as possible.</p>
+                                    <p style="color: #6b7280; font-size: 14px;"><strong>⏰ Response Required:</strong> This link will expire in 7 days. Please respond as soon as possible to avoid delays in processing the loan application.</p>
+                                    
+                                    <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">If the button doesn't work, copy and paste this link into your browser:<br>${approvalLink}</p>
                                 </div>
                                 <div class="footer">
                                     <p>AWSLMCSL Cooperative Society<br>This is an automated message, please do not reply.</p>
