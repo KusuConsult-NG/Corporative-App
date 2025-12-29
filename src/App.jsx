@@ -5,6 +5,9 @@ import { useEffect } from 'react'
 
 // Auth Pages
 import AuthPage from './pages/auth/AuthPage'
+import VerifyEmailPage from './pages/auth/VerifyEmailPage'
+import EmailVerificationPendingPage from './pages/auth/EmailVerificationPendingPage'
+import RegistrationFeePage from './pages/auth/RegistrationFeePage'
 
 // Member Pages
 import MemberDashboard from './pages/member/MemberDashboard'
@@ -51,6 +54,9 @@ function App() {
             <Routes>
                 {/* Public Routes */}
                 <Route path="/auth" element={!isAuthenticated ? <AuthPage /> : <Navigate to={user?.role === 'admin' ? '/admin/dashboard' : '/member/dashboard'} />} />
+                <Route path="/verify-email" element={<VerifyEmailPage />} />
+                <Route path="/email-verification-pending" element={<EmailVerificationPendingPage />} />
+                <Route path="/registration-fee" element={<RegistrationFeePage />} />
                 <Route path="/guarantor-approval/:token" element={<GuarantorApprovalPage />} />
 
                 {/* Member Routes */}

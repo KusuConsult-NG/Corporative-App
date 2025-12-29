@@ -103,8 +103,10 @@ export default function AuthPage() {
         setLoading(false)
 
         if (result.success) {
-            // Navigate to member dashboard after successful registration
-            navigate('/member/dashboard')
+            // Navigate to email verification pending page
+            navigate('/email-verification-pending', {
+                state: { email: trimmedEmail }
+            })
         } else {
             setErrors({ password: result.error || 'Registration failed' })
         }

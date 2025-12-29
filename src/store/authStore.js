@@ -12,6 +12,9 @@ import {
     where,
     getDocs,
     addDoc,
+    doc,
+    getDoc,
+    updateDoc,
     serverTimestamp
 } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
@@ -74,7 +77,12 @@ export const useAuthStore = create(
                     )
                     const firebaseUser = userCredential.user
 
-                    // Create user document in Firestore
+                    // Generate email verification token (simple UUID-like)
+                    const verificationToken = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+                    const verificationExpiry = new Date()
+                    verificationExpiry.setHours(verificationExpiry.getHours() + 24) // 24 hours
+
+                    // Create user document in Firestore with new fields
                     await addDoc(collection(db, 'users'), {
                         userId: firebaseUser.uid,
                         memberId: memberId,
@@ -86,12 +94,46 @@ export const useAuthStore = create(
                         staffId: userData.staffId,
                         department: userData.department,
                         role: 'member',
-                        status: 'active',
+                        status: 'pending', // Changed from 'active'
+
+                        // Email verification fields
+                        emailVerified: false,
+                        emailVerificationToken: verificationToken,
+                        emailVerificationExpiry: verificationExpiry,
+
+                        // Payment fields
+                        registrationFeePaid: false,
+                        registrationFeeAmount: 2000,
+                        registrationFeeReference: null,
+                        registrationFeePaidAt: null,
+
+                        // Profile fields
+                        phone: null,
+                        passport: null,
+                        passportUploadedAt: null,
+                        bankDetails: [],
+
+                        // Profile completion
+                        profileComplete: false,
+                        profileCompletionPercentage: 0,
+
                         joinedAt: serverTimestamp()
                     })
 
-                    // Auto-login after registration
-                    return await get().login(userData.email, userData.password)
+                    // Send verification email
+                    const { emailService } = await import('../services/emailService')
+                    const verificationLink = `${window.location.origin}/verify-email?token=${verificationToken}`
+                    await emailService.sendVerificationEmail(
+                        userData.email,
+                        `${userData.title} ${userData.firstName} ${userData.lastName}`,
+                        verificationLink
+                    )
+
+                    // Sign out immediately - don't auto-login
+                    await signOut(auth)
+
+                    set({ loading: false })
+                    return { success: true, requiresVerification: true }
                 } catch (error) {
                     set({ loading: false, error: error.message })
                     return { success: false, error: error.message }
@@ -154,6 +196,160 @@ export const useAuthStore = create(
                 set((state) => ({
                     user: state.user ? { ...state.user, ...updates } : null
                 }))
+            },
+
+            // Email verification functions
+            verifyEmail: async (token) => {
+                try {
+                    // Find user with this token
+                    const q = query(
+                        collection(db, 'users'),
+                        where('emailVerificationToken', '==', token)
+                    )
+                    const querySnapshot = await getDocs(q)
+
+                    if (querySnapshot.empty) {
+                        return { success: false, error: 'Invalid verification link' }
+                    }
+
+                    const userDoc = querySnapshot.docs[0]
+                    const userData = userDoc.data()
+
+                    // Check if token has expired
+                    const expiry = userData.emailVerificationExpiry?.toDate()
+                    if (expiry && expiry < new Date()) {
+                        return { success: false, error: 'Verification link has expired' }
+                    }
+
+                    // Update user document
+                    await updateDoc(doc(db, 'users', userDoc.id), {
+                        emailVerified: true,
+                        emailVerificationToken: null,
+                        emailVerificationExpiry: null,
+                        status: 'active'
+                    })
+
+                    return { success: true, email: userData.email }
+                } catch (error) {
+                    console.error('Error verifying email:', error)
+                    return { success: false, error: error.message }
+                }
+            },
+
+            resendVerificationEmail: async (email) => {
+                try {
+                    // Find user by email
+                    const q = query(
+                        collection(db, 'users'),
+                        where('email', '==', email)
+                    )
+                    const querySnapshot = await getDocs(q)
+
+                    if (querySnapshot.empty) {
+                        return { success: false, error: 'User not found' }
+                    }
+
+                    const userDoc = querySnapshot.docs[0]
+                    const userData = userDoc.data()
+
+                    if (userData.emailVerified) {
+                        return { success: false, error: 'Email already verified' }
+                    }
+
+                    // Generate new token
+                    const verificationToken = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+                    const verificationExpiry = new Date()
+                    verificationExpiry.setHours(verificationExpiry.getHours() + 24)
+
+                    // Update user document with new token
+                    await updateDoc(doc(db, 'users', userDoc.id), {
+                        emailVerificationToken: verificationToken,
+                        emailVerificationExpiry: verificationExpiry
+                    })
+
+                    // Send new verification email
+                    const { emailService } = await import('../services/emailService')
+                    const verificationLink = `${window.location.origin}/verify-email?token=${verificationToken}`
+                    await emailService.sendVerificationEmail(
+                        email,
+                        userData.name,
+                        verificationLink
+                    )
+
+                    return { success: true }
+                } catch (error) {
+                    console.error('Error resending verification email:', error)
+                    return { success: false, error: error.message }
+                }
+            },
+
+            // Registration fee payment functions
+            updateRegistrationFeePayment: async (userId, reference) => {
+                try {
+                    // Find user by userId
+                    const q = query(
+                        collection(db, 'users'),
+                        where('userId', '==', userId)
+                    )
+                    const querySnapshot = await getDocs(q)
+
+                    if (querySnapshot.empty) {
+                        return { success: false, error: 'User not found' }
+                    }
+
+                    const userDoc = querySnapshot.docs[0]
+
+                    // Update user document
+                    await updateDoc(doc(db, 'users', userDoc.id), {
+                        registrationFeePaid: true,
+                        registrationFeeReference: reference,
+                        registrationFeePaidAt: serverTimestamp()
+                    })
+
+                    // Update local user state
+                    set((state) => ({
+                        user: state.user ? {
+                            ...state.user,
+                            registrationFeePaid: true,
+                            registrationFeeReference: reference
+                        } : null
+                    }))
+
+                    return { success: true }
+                } catch (error) {
+                    console.error('Error updating payment:', error)
+                    return { success: false, error: error.message }
+                }
+            },
+
+            // Profile update functions
+            updateProfileField: async (userId, field, value) => {
+                try {
+                    const q = query(
+                        collection(db, 'users'),
+                        where('userId', '==', userId)
+                    )
+                    const querySnapshot = await getDocs(q)
+
+                    if (querySnapshot.empty) {
+                        return { success: false, error: 'User not found' }
+                    }
+
+                    const userDoc = querySnapshot.docs[0]
+                    await updateDoc(doc(db, 'users', userDoc.id), {
+                        [field]: value
+                    })
+
+                    // Update local state
+                    set((state) => ({
+                        user: state.user ? { ...state.user, [field]: value } : null
+                    }))
+
+                    return { success: true }
+                } catch (error) {
+                    console.error('Error updating profile field:', error)
+                    return { success: false, error: error.message }
+                }
             },
         }),
         {
