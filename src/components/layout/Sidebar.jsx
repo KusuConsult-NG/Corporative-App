@@ -11,7 +11,8 @@ import {
     Users,
     FileText,
     HelpCircle,
-    CheckSquare
+    CheckSquare,
+    Package
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 
@@ -27,6 +28,7 @@ const adminNavItems = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Members', path: '/admin/members', icon: Users },
     { name: 'Approvals', path: '/admin/approvals', icon: CheckSquare },
+    { name: 'Commodity Orders', path: '/admin/commodity-orders', icon: Package },
     { name: 'Savings', path: '/admin/savings', icon: PiggyBank },
     { name: 'Loans', path: '/admin/loans/requests', icon: CreditCard },
     { name: 'Commodities', path: '/admin/commodities', icon: ShoppingCart },

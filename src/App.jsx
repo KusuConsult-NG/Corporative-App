@@ -14,6 +14,7 @@ import MemberDashboard from './pages/member/MemberDashboard'
 import SavingsPage from './pages/member/SavingsPage'
 import LoanApplicationPage from './pages/member/LoanApplicationPage'
 import MyLoansPage from './pages/member/MyLoansPage'
+import LoanDeductionHistoryPage from './pages/member/LoanDeductionHistoryPage'
 import CommoditiesPage from './pages/member/CommoditiesPage'
 import ProfilePage from './pages/member/ProfilePage'
 import MyOrdersPage from './pages/member/MyOrdersPage'
@@ -24,6 +25,7 @@ import SupportPage from './pages/member/SupportPage'
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminApprovalsPage from './pages/admin/AdminApprovalsPage'
+import AdminCommodityOrdersPage from './pages/admin/AdminCommodityOrdersPage'
 import LoanRequestsPage from './pages/admin/LoanRequestsPage'
 import MembersPage from './pages/admin/MembersPage'
 import AdminSavingsPage from './pages/admin/AdminSavingsPage'
@@ -66,6 +68,7 @@ function App() {
                     <Route path="savings" element={<SavingsPage />} />
                     <Route path="loans/apply" element={<LoanApplicationPage />} />
                     <Route path="loans" element={<MyLoansPage />} />
+                    <Route path="loans/deductions" element={<LoanDeductionHistoryPage />} />
                     <Route path="commodities" element={<CommoditiesPage />} />
                     <Route path="orders" element={<MyOrdersPage />} />
                     <Route path="settings" element={<SettingsPage />} />
@@ -77,6 +80,7 @@ function App() {
                 <Route path="/admin" element={isAuthenticated && (user?.role === 'admin' || user?.role === 'superadmin') ? <AdminLayout /> : <Navigate to="/auth" />}>
                     <Route path="dashboard" element={<AdminDashboard />} />
                     <Route path="approvals" element={<AdminApprovalsPage />} />
+                    <Route path="commodity-orders" element={<AdminCommodityOrdersPage />} />
                     <Route path="loans/requests" element={<LoanRequestsPage />} />
                     <Route path="members" element={<MembersPage />} />
                     <Route path="savings" element={<AdminSavingsPage />} />
