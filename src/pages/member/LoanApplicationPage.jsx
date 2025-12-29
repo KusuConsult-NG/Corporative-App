@@ -21,10 +21,10 @@ import Select from '../../components/ui/Select'
 import GuarantorSelector from '../../components/GuarantorSelector'
 
 const LOAN_TYPES = [
-    { value: 'personal', label: 'Personal Loan', maxAmount: 1000000, maxDuration: 6, rate: 3 },
-    { value: 'business', label: 'Business Loan', maxAmount: 5000000, maxDuration: 6, rate: 3 },
-    { value: 'emergency', label: 'Emergency Loan', maxAmount: 200000, maxDuration: 6, rate: 3 },
-    { value: 'education', label: 'Education Loan', maxAmount: 1500000, maxDuration: 6, rate: 3 },
+    { value: 'personal', label: 'Personal Loan', maxAmount: 1000000, maxDuration: 12, rate: 3 },
+    { value: 'business', label: 'Business Loan', maxAmount: 5000000, maxDuration: 12, rate: 3 },
+    { value: 'emergency', label: 'Emergency Loan', maxAmount: 200000, maxDuration: 12, rate: 3 },
+    { value: 'education', label: 'Education Loan', maxAmount: 1500000, maxDuration: 12, rate: 3 },
 ]
 
 export default function LoanApplicationPage() {
@@ -37,6 +37,7 @@ export default function LoanApplicationPage() {
         loanType: '',
         amount: '',
         duration: '',
+        monthlyDeduction: '', // Custom monthly payment amount
         purpose: '',
         guarantors: [],
         agreedToTerms: false
@@ -228,13 +229,29 @@ export default function LoanApplicationPage() {
                                         name="duration"
                                         type="number"
                                         min="1"
-                                        max="6"
-                                        placeholder="e.g. 6"
+                                        max="12"
+                                        placeholder="e.g. 12"
                                         value={formData.duration}
                                         onChange={handleInputChange}
                                         error={errors.duration}
                                         icon={Calendar}
                                     />
+                                    <div className="md:col-span-2">
+                                        <Input
+                                            label="Preferred Monthly Deduction (₦) - Optional"
+                                            name="monthlyDeduction"
+                                            type="number"
+                                            placeholder="Leave empty for standard spread"
+                                            value={formData.monthlyDeduction}
+                                            onChange={handleInputChange}
+                                            error={errors.monthlyDeduction}
+                                            icon={Banknote}
+                                        />
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                                            <Info size={12} />
+                                            Specify a custom monthly amount to pay off faster. Deductions start from the last day of the application month.
+                                        </p>
+                                    </div>
                                     <div className="md:col-span-2">
                                         <div className="flex flex-col gap-2">
                                             <label className="text-slate-900 dark:text-gray-200 text-sm font-semibold">
