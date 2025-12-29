@@ -57,8 +57,29 @@ export const useAuthStore = create(
 
                     return { success: true }
                 } catch (error) {
-                    set({ loading: false, error: error.message })
-                    return { success: false, error: error.message }
+                    console.error('Login error:', error)
+
+                    // Provide user-friendly error messages
+                    let errorMessage = error.message
+
+                    if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') {
+                        errorMessage = 'Invalid email or password. Please check your credentials and try again.'
+                    } else if (error.code === 'auth/user-not-found') {
+                        errorMessage = 'No account found with this email address. Please register first.'
+                    } else if (error.code === 'auth/invalid-email') {
+                        errorMessage = 'Please enter a valid email address.'
+                    } else if (error.code === 'auth/user-disabled') {
+                        errorMessage = 'This account has been disabled. Please contact support.'
+                    } else if (error.code === 'auth/too-many-requests') {
+                        errorMessage = 'Too many failed login attempts. Please try again later or reset your password.'
+                    } else if (error.code === 'auth/network-request-failed') {
+                        errorMessage = 'Network error. Please check your internet connection and try again.'
+                    } else if (error.message === 'User profile not found') {
+                        errorMessage = 'Account setup incomplete. Please contact support.'
+                    }
+
+                    set({ loading: false, error: errorMessage })
+                    return { success: false, error: errorMessage }
                 }
             },
 
@@ -135,8 +156,25 @@ export const useAuthStore = create(
                     set({ loading: false })
                     return { success: true, requiresVerification: true }
                 } catch (error) {
-                    set({ loading: false, error: error.message })
-                    return { success: false, error: error.message }
+                    console.error('Registration error:', error)
+
+                    // Provide user-friendly error messages
+                    let errorMessage = error.message
+
+                    if (error.code === 'auth/email-already-in-use') {
+                        errorMessage = 'This email address is already registered. Please use a different email or try logging in.'
+                    } else if (error.code === 'auth/invalid-email') {
+                        errorMessage = 'Please enter a valid email address.'
+                    } else if (error.code === 'auth/weak-password') {
+                        errorMessage = 'Password is too weak. Please use at least 6 characters.'
+                    } else if (error.code === 'auth/network-request-failed') {
+                        errorMessage = 'Network error. Please check your internet connection and try again.'
+                    } else if (error.code === 'auth/too-many-requests') {
+                        errorMessage = 'Too many attempts. Please try again later.'
+                    }
+
+                    set({ loading: false, error: errorMessage })
+                    return { success: false, error: errorMessage }
                 }
             },
 
