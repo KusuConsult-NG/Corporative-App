@@ -320,10 +320,6 @@ export default function LoanApplicationPage() {
                                     {errors.guarantors && (
                                         <p className="text-red-500 text-xs">{errors.guarantors}</p>
                                     )}
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                                        <Info size={14} />
-                                        Minimum of 2 guarantors required for most loans.
-                                    </p>
                                 </div>
                             </div>
 
