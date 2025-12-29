@@ -4,6 +4,7 @@ import { Search, ShoppingBag, Truck, Zap, Home, Grid, Smartphone } from 'lucide-
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import ProductCard from '../../components/ui/ProductCard'
+import CommodityOrderModal from '../../components/CommodityOrderModal'
 
 // Mock Data
 const CATEGORIES = [
@@ -75,7 +76,8 @@ export default function CommoditiesPage() {
     const navigate = useNavigate()
     const [selectedCategory, setSelectedCategory] = useState('all')
     const [searchQuery, setSearchQuery] = useState('')
-    const [requesting, setRequesting] = useState(null)
+    const [selectedProduct, setSelectedProduct] = useState(null)
+    const [showOrderModal, setShowOrderModal] = useState(false)
 
     const filteredProducts = PRODUCTS.filter(product => {
         const matchesCategory = selectedCategory === 'all' || product.categoryId === selectedCategory
@@ -85,14 +87,13 @@ export default function CommoditiesPage() {
     })
 
     const handleRequest = (product) => {
-        if (confirm(`Are you sure you want to request purchase for ${product.name}?`)) {
-            setRequesting(product.id)
-            // Simulate API call
-            setTimeout(() => {
-                alert('Request sent successfully! Admin will contact you specifically regarding delivery.')
-                setRequesting(null)
-            }, 1000)
-        }
+        setSelectedProduct(product)
+        setShowOrderModal(true)
+    }
+
+    const closeOrderModal = () => {
+        setShowOrderModal(false)
+        setSelectedProduct(null)
     }
 
     return (
@@ -167,6 +168,13 @@ export default function CommoditiesPage() {
                     </div>
                 )}
             </div>
+
+            {/* Commodity Order Modal */}
+            <CommodityOrderModal
+                isOpen={showOrderModal}
+                onClose={closeOrderModal}
+                product={selectedProduct}
+            />
         </div>
     )
 }
