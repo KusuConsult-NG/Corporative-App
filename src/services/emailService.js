@@ -11,7 +11,6 @@ export const emailService = {
 
             const { applicantName, loanAmount, loanPurpose, approvalLink } = loanDetails
 
-            // Create an AbortController with 5 second timeout
             const controller = new AbortController()
             const timeoutId = setTimeout(() => controller.abort(), 5000)
 
@@ -36,13 +35,8 @@ export const emailService = {
                                 .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
                                 .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
                                 .detail-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
-                                .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
-                                .detail-row:last-child { border-bottom: none; }
-                                .label { font-weight: bold; color: #6b7280; }
-                                .value { color: #111827; }
                                 .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; }
                                 .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
-                                .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 8px; }
                             </style>
                         </head>
                         <body>
@@ -54,34 +48,15 @@ export const emailService = {
                                 <div class="content">
                                     <p>Dear Member,</p>
                                     <p><strong>${applicantName}</strong> has requested you to be a guarantor for their loan application.</p>
-                                    
                                     <div class="detail-box">
                                         <h3 style="margin-top: 0; color: #667eea;">Loan Details</h3>
-                                        <div class="detail-row">
-                                            <span class="label">Applicant:</span>
-                                            <span class="value">${applicantName}</span>
-                                        </div>
-                                        <div class="detail-row">
-                                            <span class="label">Loan Amount:</span>
-                                            <span class="value">₦${loanAmount.toLocaleString()}</span>
-                                        </div>
-                                        <div class="detail-row">
-                                            <span class="label">Purpose:</span>
-                                            <span class="value">${loanPurpose}</span>
-                                        </div>
+                                        <p><strong>Applicant:</strong> ${applicantName}</p>
+                                        <p><strong>Loan Amount:</strong> ₦${loanAmount.toLocaleString()}</p>
+                                        <p><strong>Purpose:</strong> ${loanPurpose}</p>
                                     </div>
-
-                                    <div class="warning">
-                                        <strong>⚠️ Important:</strong> As a guarantor, you agree to take responsibility for this loan if the borrower defaults. Please review the terms carefully before accepting.
-                                    </div>
-
                                     <p style="text-align: center;">
                                         <a href="${approvalLink}" class="button">Review & Respond to Request</a>
                                     </p>
-
-                                    <p style="color: #6b7280; font-size: 14px;"><strong>⏰ Response Required:</strong> This link will expire in 7 days. Please respond as soon as possible to avoid delays in processing the loan application.</p>
-                                    
-                                    <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">If the button doesn't work, copy and paste this link into your browser:<br>${approvalLink}</p>
                                 </div>
                                 <div class="footer">
                                     <p>AWSLMCSL Cooperative Society<br>This is an automated message, please do not reply.</p>
@@ -108,15 +83,16 @@ export const emailService = {
             } else {
                 console.error('Error sending guarantor notification:', error)
             }
-            // Don't throw - just log the error and continue
             return { success: false, error: error.message }
         }
     },
 
-    sendApplicantUpdate: async (applicantEmail, guarantorName, status) => {
+    // NEW: Send loan approval email
+    sendLoanApprovalEmail: async (userEmail, loan) => {
         try {
-            const statusText = status === 'approved' ? 'approved' : 'declined'
-            const statusColor = status === 'approved' ? '#10b981' : '#ef4444'
+            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
+                return { success: false, message: 'Email service not configured' }
+            }
 
             await fetch('https://api.resend.com/emails', {
                 method: 'POST',
@@ -126,22 +102,247 @@ export const emailService = {
                 },
                 body: JSON.stringify({
                     from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
-                    to: applicantEmail,
-                    subject: `Guarantor Update: ${guarantorName} has ${statusText} your request`,
+                    to: userEmail,
+                    subject: '🎉 Loan Approved!',
                     html: `
-                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                            <h2 style="color: ${statusColor};">Guarantor ${statusText.charAt(0).toUpperCase() + statusText.slice(1)}</h2>
-                            <p><strong>${guarantorName}</strong> has ${statusText} your request to be a guarantor for your loan application.</p>
-                            <p>Login to your account to view the updated status of your application.</p>
-                        </div>
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <style>
+                                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                                .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                                .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+                                .amount { font-size: 32px; font-weight: bold; color: #10b981; text-align: center; margin: 20px 0; }
+                                .detail-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+                                .button { display: inline-block; background: #10b981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="container">
+                                <div class="header">
+                                    <h1>✅ Loan Approved!</h1>
+                                </div>
+                                <div class="content">
+                                    <p>Dear ${loan.userName},</p>
+                                    <p>Great news! Your loan application has been approved by our administrators.</p>
+                                    <div class="amount">₦${loan.amount.toLocaleString()}</div>
+                                    <div class="detail-box">
+                                        <h3 style="color: #10b981; margin-top: 0;">Loan Details</h3>
+                                        <p><strong>Amount:</strong> ₦${loan.amount.toLocaleString()}</p>
+                                        <p><strong>Purpose:</strong> ${loan.purpose}</p>
+                                        <p><strong>Duration:</strong> ${loan.duration} months</p>
+                                        <p><strong>Monthly Payment:</strong> ₦${(loan.amount / loan.duration).toLocaleString()}</p>
+                                    </div>
+                                    <p style="text-align: center;">
+                                        <a href="${process.env.VITE_APP_URL || 'http://localhost:5173'}/member/loans" class="button">View Loan Details</a>
+                                    </p>
+                                    <p style="color: #6b7280; font-size: 14px;">The loan amount will be disbursed to your account within 2-3 business days. Monthly deductions will begin from your next salary.</p>
+                                </div>
+                            </div>
+                        </body>
+                        </html>
                     `
                 })
             })
+
+            return { success: true }
         } catch (error) {
-            console.error('Error sending applicant update:', error)
+            console.error('Error sending loan approval email:', error)
+            return { success: false, error: error.message }
         }
     },
 
+    // NEW: Send loan rejection email
+    sendLoanRejectionEmail: async (userEmail, loan, reason) => {
+        try {
+            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
+                return { success: false, message: 'Email service not configured' }
+            }
+
+            await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${RESEND_API_KEY}`
+                },
+                body: JSON.stringify({
+                    from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
+                    to: userEmail,
+                    subject: 'Loan Application Update',
+                    html: `
+                        <!DOCTYPE html>
+                        <html>
+                        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                            <div style="background: #f9fafb; padding: 30px; border-radius: 10px; border-left: 4px solid #ef4444;">
+                                <h2 style="color: #ef4444;">Loan Application Update</h2>
+                                <p>Dear ${loan.userName},</p>
+                                <p>We regret to inform you that your loan application for <strong>₦${loan.amount.toLocaleString()}</strong> could not be approved at this time.</p>
+                                ${reason ? `<div style="background: white; padding: 15px; border-radius: 8px; margin: 20px 0;"><p style="margin: 0;"><strong>Reason:</strong><br>${reason}</p></div>` : ''}
+                                <p>You may resubmit your application after addressing the concerns mentioned above. If you have any questions, please contact our support team.</p>
+                                <p style="color: #6b7280; font-size: 14px;">Thank you for your understanding.</p>
+                            </div>
+                        </body>
+                        </html>
+                    `
+                })
+            })
+
+            return { success: true }
+        } catch (error) {
+            console.error('Error sending loan rejection email:', error)
+            return { success: false, error: error.message }
+        }
+    },
+
+    // NEW: Send commodity order approval email
+    sendOrderApprovalEmail: async (userEmail, order) => {
+        try {
+            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
+                return { success: false, message: 'Email service not configured' }
+            }
+
+            await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${RESEND_API_KEY}`
+                },
+                body: JSON.stringify({
+                    from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
+                    to: userEmail,
+                    subject: '📦 Commodity Order Approved!',
+                    html: `
+                        <!DOCTYPE html>
+                        <html>
+                        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                            <div style="background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+                                <h1>✅ Order Approved!</h1>
+                            </div>
+                            <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
+                                <p>Dear ${order.userName},</p>
+                                <p>Great news! Your commodity order has been approved.</p>
+                                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                    <h3 style="color: #8b5cf6; margin-top: 0;">Order Details</h3>
+                                    <p><strong>Product:</strong> ${order.productName}</p>
+                                    <p><strong>Quantity:</strong> ${order.quantity}</p>
+                                    <p><strong>Total Amount:</strong> ₦${order.totalAmount.toLocaleString()}</p>
+                                    ${order.paymentType === 'installment' ? `<p><strong>Payment Plan:</strong> ${order.duration} monthly installments of ₦${order.monthlyPayment.toLocaleString()}</p>` : ''}
+                                </div>
+                                <p style="text-align: center;">
+                                    <a href="${process.env.VITE_APP_URL || 'http://localhost:5173'}/member/orders" style="display: inline-block; background: #8b5cf6; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold;">View Order</a>
+                                </p>
+                                <p style="color: #6b7280; font-size: 14px;">Your order will be processed and ready for delivery soon. You'll receive another notification when it ships.</p>
+                            </div>
+                        </body>
+                        </html>
+                    `
+                })
+            })
+
+            return { success: true }
+        } catch (error) {
+            console.error('Error sending order approval email:', error)
+            return { success: false, error: error.message }
+        }
+    },
+
+    // NEW: Send payment confirmation email
+    sendPaymentConfirmationEmail: async (userEmail, payment) => {
+        try {
+            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
+                return { success: false, message: 'Email service not configured' }
+            }
+
+            await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${RESEND_API_KEY}`
+                },
+                body: JSON.stringify({
+                    from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
+                    to: userEmail,
+                    subject: '💳 Payment Processed',
+                    html: `
+                        <!DOCTYPE html>
+                        <html>
+                        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                            <div style="background: #f9fafb; padding: 30px; border-radius: 10px; border-left: 4px solid #10b981;">
+                                <h2 style="color: #10b981;">✅ Payment Processed</h2>
+                                <p>Dear ${payment.userName},</p>
+                                <p>Your installment payment has been successfully processed.</p>
+                                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                                    <p><strong>Product:</strong> ${payment.productName}</p>
+                                    <p><strong>Installment:</strong> ${payment.installmentNumber} of ${payment.totalInstallments}</p>
+                                    <p><strong>Amount Paid:</strong> ₦${payment.amount.toLocaleString()}</p>
+                                    <p><strong>Payment Reference:</strong> ${payment.reference}</p>
+                                    <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                                </div>
+                                <p>You can view your complete payment schedule and progress in your account.</p>
+                                <p style="text-align: center;">
+                                    <a href="${process.env.VITE_APP_URL || 'http://localhost:5173'}/member/orders" style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">View Payment Schedule</a>
+                                </p>
+                            </div>
+                        </body>
+                        </html>
+                    `
+                })
+            })
+
+            return { success: true }
+        } catch (error) {
+            console.error('Error sending payment confirmation email:', error)
+            return { success: false, error: error.message }
+        }
+    },
+
+    // NEW: Send broadcast email
+    sendBroadcastEmail: async (userEmail, broadcast) => {
+        try {
+            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
+                return { success: false, message: 'Email service not configured' }
+            }
+
+            await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${RESEND_API_KEY}`
+                },
+                body: JSON.stringify({
+                    from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
+                    to: userEmail,
+                    subject: `📢 ${broadcast.subject}`,
+                    html: `
+                        <!DOCTYPE html>
+                        <html>
+                        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+                                <h2>📢 Broadcast Message</h2>
+                            </div>
+                            <div style="background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px;">
+                                <h3 style="color: #667eea;">${broadcast.subject}</h3>
+                                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; white-space: pre-wrap;">${broadcast.message}</div>
+                                <p style="color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 15px; margin-top: 20px;">
+                                    This is a broadcast message from AWSLMCSL Cooperative Society.<br>
+                                    Sent by: ${broadcast.senderName}
+                                </p>
+                            </div>
+                        </body>
+                        </html>
+                    `
+                })
+            })
+
+            return { success: true }
+        } catch (error) {
+            console.error('Error sending broadcast email:', error)
+            return { success: false, error: error.message }
+        }
+    },
+
+    // Existing methods continue below...
     sendVerificationEmail: async (email, userName, verificationLink) => {
         try {
             if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
@@ -166,35 +367,14 @@ export const emailService = {
                     html: `
                         <!DOCTYPE html>
                         <html>
-                        <head>
-                            <style>
-                                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-                                .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-                                .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: bold; }
-                                .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 14px; }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="container">
-                                <div class="header">
-                                    <h1>Welcome to AWSLMCSL!</h1>
-                                </div>
-                                <div class="content">
-                                    <p>Dear ${userName},</p>
-                                    <p>Thank you for registering with the Anchorage Welfare Savings and Loans Multipurpose Cooperative Society Limited.</p>
-                                    <p>Please verify your email address by clicking the button below:</p>
-                                    <p style="text-align: center;">
-                                        <a href="${verificationLink}" class="button">Verify Email Address</a>
-                                    </p>
-                                    <p style="color: #6b7280; font-size: 14px;">This link will expire in 24 hours. If you didn't create an account, please ignore this email.</p>
-                                    <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">If the button doesn't work, copy and paste this link into your browser:<br>${verificationLink}</p>
-                                </div>
-                                <div class="footer">
-                                    <p>AWSLMCSL Cooperative Society<br>This is an automated message, please do not reply.</p>
-                                </div>
-                            </div>
+                        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                            <h2>Welcome to AWSLMCSL!</h2>
+                            <p>Dear ${userName},</p>
+                            <p>Please verify your email address by clicking the button below:</p>
+                            <p style="text-align: center;">
+                                <a href="${verificationLink}" style="display: inline-block; background: #667eea; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold;">Verify Email Address</a>
+                            </p>
+                            <p style="color: #6b7280; font-size: 14px;">This link will expire in 24 hours.</p>
                         </body>
                         </html>
                     `
@@ -210,183 +390,6 @@ export const emailService = {
             return { success: true }
         } catch (error) {
             console.error('Error sending verification email:', error)
-            return { success: false, error: error.message }
-        }
-    },
-
-    sendRegistrationFeeReminder: async (email, userName, paymentLink) => {
-        try {
-            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
-                return { success: false, message: 'Email service not configured' }
-            }
-
-            await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${RESEND_API_KEY}`
-                },
-                body: JSON.stringify({
-                    from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
-                    to: email,
-                    subject: 'Complete Your Registration - Payment Required',
-                    html: `
-                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                            <h2 style="color: #667eea;">Complete Your Registration</h2>
-                            <p>Dear ${userName},</p>
-                            <p>Your email has been verified successfully! To complete your registration and gain full access to the cooperative platform, please pay the registration fee of <strong>₦2,000</strong>.</p>
-                            <p style="text-align: center; margin: 30px 0;">
-                                <a href="${paymentLink}" style="display: inline-block; background: #667eea; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold;">Pay Registration Fee</a>
-                            </p>
-                            <p>After payment, you'll have access to all cooperative services including loans, savings, and commodities.</p>
-                        </div>
-                    `
-                })
-            })
-
-            return { success: true }
-        } catch (error) {
-            console.error('Error sending registration fee reminder:', error)
-            return { success: false, error: error.message }
-        }
-    },
-
-    sendAdminApprovalNotification: async (adminEmail, approvalType, userName, requestDetails) => {
-        try {
-            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
-                return { success: false, message: 'Email service not configured' }
-            }
-
-            const typeLabel = approvalType === 'bank_details' ? 'Bank Details' : 'Approval Request'
-
-            await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${RESEND_API_KEY}`
-                },
-                body: JSON.stringify({
-                    from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
-                    to: adminEmail,
-                    subject: `New ${typeLabel} Approval Request`,
-                    html: `
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <style>
-                                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0; }
-                                .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-                                .detail-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea; }
-                                .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; margin: 10px 0; font-weight: bold; }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="container">
-                                <div class="header">
-                                    <h2>⚠️ Approval Request Pending</h2>
-                                </div>
-                                <div class="content">
-                                    <p>Dear Admin,</p>
-                                    <p><strong>${userName}</strong> has submitted a new ${typeLabel} approval request.</p>
-                                    <div class="detail-box">
-                                        <h3 style="margin-top: 0; color: #667eea;">Request Details</h3>
-                                        ${requestDetails}
-                                    </div>
-                                    <p style="text-align: center;">
-                                        <a href="${process.env.VITE_APP_URL || 'http://localhost:5173'}/admin/approvals" class="button">Review Request</a>
-                                    </p>
-                                    <p style="color: #6b7280; font-size: 14px;">Please review and approve/reject this request at your earliest convenience.</p>
-                                </div>
-                            </div>
-                        </body>
-                        </html>
-                    `
-                })
-            })
-
-            return { success: true }
-        } catch (error) {
-            console.error('Error sending admin notification:', error)
-            return { success: false, error: error.message }
-        }
-    },
-
-    sendApprovalStatusUpdate: async (userEmail, userName, approvalType, status, note) => {
-        try {
-            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
-                return { success: false, message: 'Email service not configured' }
-            }
-
-            const statusText = status === 'approved' ? 'Approved' : 'Rejected'
-            const statusColor = status === 'approved' ? '#10b981' : '#ef4444'
-            const typeLabel = approvalType === 'bank_details' ? 'Bank Details' : 'Request'
-
-            await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${RESEND_API_KEY}`
-                },
-                body: JSON.stringify({
-                    from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
-                    to: userEmail,
-                    subject: `${typeLabel} ${statusText}`,
-                    html: `
-                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                            <h2 style="color: ${statusColor};">${typeLabel} ${statusText}</h2>
-                            <p>Dear ${userName},</p>
-                            <p>Your ${typeLabel} request has been <strong style="color: ${statusColor};">${statusText.toLowerCase()}</strong> by an administrator.</p>
-                            ${note ? `<div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;"><p style="margin: 0;"><strong>Note from Admin:</strong><br>${note}</p></div>` : ''}
-                            <p>Login to your account to view the updated status.</p>
-                        </div>
-                    `
-                })
-            })
-
-            return { success: true }
-        } catch (error) {
-            console.error('Error sending approval status update:', error)
-            return { success: false, error: error.message }
-        }
-    },
-
-    sendGuarantorReminder: async (guarantorEmail, applicantName, loanAmount, approvalLink, daysRemaining) => {
-        try {
-            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
-                return { success: false, message: 'Email service not configured' }
-            }
-
-            await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${RESEND_API_KEY}`
-                },
-                body: JSON.stringify({
-                    from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
-                    to: guarantorEmail,
-                    subject: 'Reminder: Guarantor Request Pending',
-                    html: `
-                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                            <h2 style="color: #f59e0b;">⏰ Reminder: Action Required</h2>
-                            <p>Dear Member,</p>
-                            <p>This is a friendly reminder that <strong>${applicantName}</strong> is waiting for your response to their guarantor request for a loan of <strong>₦${loanAmount.toLocaleString()}</strong>.</p>
-                            <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 8px;">
-                                <p style="margin: 0;"><strong>Note:</strong> This request will expire in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}. Please respond as soon as possible.</p>
-                            </div>
-                            <p style="text-align: center; margin: 30px 0;">
-                                <a href="${approvalLink}" style="display: inline-block; background: #667eea; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold;">Review Request</a>
-                            </p>
-                        </div>
-                    `
-                })
-            })
-
-            return { success: true }
-        } catch (error) {
-            console.error('Error sending guarantor reminder:', error)
             return { success: false, error: error.message }
         }
     }

@@ -14,9 +14,12 @@ import {
     CheckSquare,
     Package,
     MessageSquare,
-    AlertCircle
+    AlertCircle,
+    Shield,
+    Calendar
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
+import { hasPermission, PERMISSIONS, isSuperAdmin } from '../../utils/permissions'
 
 const memberNavItems = [
     { name: 'Dashboard', path: '/member/dashboard', icon: LayoutDashboard },
@@ -30,19 +33,44 @@ const memberNavItems = [
 
 const adminNavItems = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Members', path: '/admin/members', icon: Users },
-    { name: 'Approvals', path: '/admin/approvals', icon: CheckSquare },
-    { name: 'Commodity Orders', path: '/admin/commodity-orders', icon: Package },
-    { name: 'Broadcast', path: '/admin/broadcast', icon: MessageSquare },
-    { name: 'Savings', path: '/admin/savings', icon: PiggyBank },
-    { name: 'Loans', path: '/admin/loans/requests', icon: CreditCard },
-    { name: 'Commodities', path: '/admin/commodities', icon: ShoppingCart },
-    { name: 'Reports', path: '/admin/reports', icon: FileText },
+    { name: 'Members', path: '/admin/members', icon: Users, permission: PERMISSIONS.VIEW_MEMBERS },
+    { name: 'Approvals', path: '/admin/approvals', icon: CheckSquare, permission: PERMISSIONS.VIEW_APPROVALS },
+    { name: 'Commodity Orders', path: '/admin/commodity-orders', icon: Package, permission: PERMISSIONS.VIEW_COMMODITY_ORDERS },
+    { name: 'Commodity Deductions', path: '/admin/commodity-deductions', icon: Calendar, permission: PERMISSIONS.MANAGE_COMMODITIES },
+    { name: 'Broadcast', path: '/admin/broadcast', icon: MessageSquare, permission: PERMISSIONS.SEND_BROADCAST },
+    { name: 'Savings', path: '/admin/savings', icon: PiggyBank, permission: PERMISSIONS.VIEW_SAVINGS },
+    { name: 'Loans', path: '/admin/loans/requests', icon: CreditCard, permission: PERMISSIONS.VIEW_LOANS },
+    { name: 'Commodities', path: '/admin/commodities', icon: ShoppingCart, permission: PERMISSIONS.MANAGE_COMMODITIES },
+    { name: 'Reports', path: '/admin/reports', icon: FileText, permission: PERMISSIONS.VIEW_REPORTS },
+    { name: 'Role Management', path: '/admin/roles', icon: Shield, requireSuperAdmin: true },
 ]
 
 export default function Sidebar({ role = 'member' }) {
     const { user, logout } = useAuthStore()
-    const navItems = role === 'admin' ? adminNavItems : memberNavItems
+
+    // Filter admin nav items based on permissions
+    const getFilteredNavItems = () => {
+        if (role !== 'admin') {
+            return memberNavItems
+        }
+
+        return adminNavItems.filter(item => {
+            // If item requires super admin, check that
+            if (item.requireSuperAdmin) {
+                return isSuperAdmin(user)
+            }
+
+            // If item has permission requirement, check it
+            if (item.permission) {
+                return hasPermission(user, item.permission)
+            }
+
+            // No permission required, show it
+            return true
+        })
+    }
+
+    const navItems = getFilteredNavItems()
 
     return (
         <aside className="hidden lg:flex w-72 flex-col bg-surface-light dark:bg-surface-dark border-r border-slate-200 dark:border-slate-800 h-full shrink-0 transition-colors">

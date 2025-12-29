@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { PaystackButton } from 'react-paystack'
 import { CreditCard, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
+import { canAccessAdmin } from '../../utils/permissions'
 import { auth } from '../../lib/firebase'
 import Button from '../../components/ui/Button'
 
@@ -20,7 +21,7 @@ export default function RegistrationFeePage() {
     // If already paid, redirect to dashboard
     useEffect(() => {
         if (user?.registrationFeePaid) {
-            navigate(user.role === 'admin' ? '/admin/dashboard' : '/member/dashboard')
+            navigate(canAccessAdmin(user) ? '/admin/dashboard' : '/member/dashboard')
         }
     }, [user, navigate])
 

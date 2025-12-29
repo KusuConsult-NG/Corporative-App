@@ -1,78 +1,97 @@
-import { useState } from 'react'
-import { Package, Search, Filter, Download, Eye, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Package, Search, Download, Eye, X, Calendar, Receipt } from 'lucide-react'
 import { formatCurrency, formatDate } from '../../utils/formatters'
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'
+import { db } from '../../lib/firebase'
+import { useAuthStore } from '../../store/authStore'
+import { updateOverdueStatus } from '../../utils/installmentUtils'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
+import PaymentProgressBar from '../../components/ui/PaymentProgressBar'
+import InstallmentScheduleModal from '../../components/InstallmentScheduleModal'
 
-// Mock Orders Data
-const MOCK_ORDERS = [
-    {
-        id: 'ORD-001',
-        productName: 'Bag of Rice (50kg)',
-        category: 'Foodstuff',
-        quantity: 2,
-        amount: 130000,
-        orderDate: '2023-12-20',
-        status: 'delivered',
-        deliveryDate: '2023-12-23',
-        paymentMethod: 'Monthly Deduction'
-    },
-    {
-        id: 'ORD-002',
-        productName: 'Samsung Galaxy A54',
-        category: 'Electronics',
-        quantity: 1,
-        amount: 450000,
-        orderDate: '2023-12-15',
-        status: 'approved',
-        deliveryDate: null,
-        paymentMethod: 'Installment (6 months)'
-    },
-    {
-        id: 'ORD-003',
-        productName: '3.5kVA Solar Inverter System',
-        category: 'Solar & Power',
-        quantity: 1,
-        amount: 1200000,
-        orderDate: '2023-12-10',
-        status: 'pending',
-        deliveryDate: null,
-        paymentMethod: 'Installment (12 months)'
-    },
-    {
-        id: 'ORD-004',
-        productName: 'Double Door Refrigerator',
-        category: 'Home Appliances',
-        quantity: 1,
-        amount: 550000,
-        orderDate: '2023-11-28',
-        status: 'delivered',
-        deliveryDate: '2023-12-02',
-        paymentMethod: 'Installment (10 months)'
-    },
-    {
-        id: 'ORD-005',
-        productName: 'Vegetable Oil (25L)',
-        category: 'Foodstuff',
-        quantity: 3,
-        amount: 135000,
-        orderDate: '2023-12-01',
-        status: 'cancelled',
-        deliveryDate: null,
-        paymentMethod: 'Monthly Deduction'
-    }
-]
-
-const STATUS_FILTERS = ['all', 'pending', 'approved', 'delivered', 'cancelled']
+const STATUS_FILTERS = ['all', 'pending_approval', 'approved', 'processing', 'delivered', 'rejected', 'cancelled']
 
 export default function MyOrdersPage() {
+    const { user } = useAuthStore()
+    const [orders, setOrders] = useState([])
+    const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState('all')
     const [selectedOrder, setSelectedOrder] = useState(null)
+    const [showScheduleModal, setShowScheduleModal] = useState(false)
+    const [selectedSchedule, setSelectedSchedule] = useState(null)
 
-    const filteredOrders = MOCK_ORDERS.filter(order => {
-        const matchesSearch = order.productName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    useEffect(() => {
+        if (user?.userId) {
+            fetchOrders()
+        }
+    }, [user])
+
+    const fetchOrders = async () => {
+        setLoading(true)
+        try {
+            const q = query(
+                collection(db, 'commodityOrders'),
+                where('userId', '==', user.userId)
+            )
+
+            const snapshot = await getDocs(q)
+            const ordersList = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }))
+
+            // Sort by order date (newest first)
+            ordersList.sort((a, b) => {
+                const dateA = a.orderedAt?.toDate?.() || new Date(0)
+                const dateB = b.orderedAt?.toDate?.() || new Date(0)
+                return dateB - dateA
+            })
+
+            setOrders(ordersList)
+        } catch (error) {
+            console.error('Error fetching orders:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const fetchInstallmentSchedule = async (orderId) => {
+        try {
+            const scheduleQuery = query(collection(db, `commodityOrders/${orderId}/installmentSchedule`))
+            const snapshot = await getDocs(scheduleQuery)
+
+            const schedule = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                // Convert Firestore timestamps to Date objects
+                dueDate: doc.data().dueDate?.toDate?.() || new Date(),
+                paidDate: doc.data().paidDate?.toDate?.() || null,
+                processedAt: doc.data().processedAt?.toDate?.() || null
+            }))
+
+            // Sort by installment number
+            schedule.sort((a, b) => a.installmentNumber - b.installmentNumber)
+
+            // Update overdue statuses
+            return updateOverdueStatus(schedule)
+        } catch (error) {
+            console.error('Error fetching installment schedule:', error)
+            return []
+        }
+    }
+
+    const handleViewSchedule = async (order) => {
+        const schedule = await fetchInstallmentSchedule(order.id)
+        setSelectedSchedule(schedule)
+        setSelectedOrder(order)
+        setShowScheduleModal(true)
+    }
+
+    const filteredOrders = orders.filter(order => {
+        const matchesSearch = order.productName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             order.id.toLowerCase().includes(searchQuery.toLowerCase())
         const matchesStatus = statusFilter === 'all' || order.status === statusFilter
         return matchesSearch && matchesStatus
@@ -80,16 +99,41 @@ export default function MyOrdersPage() {
 
     const getStatusBadge = (status) => {
         const statusStyles = {
-            pending: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+            pending_approval: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
             approved: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+            processing: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
             delivered: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-            cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+            rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+            cancelled: 'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400'
         }
+
+        const displayNames = {
+            pending_approval: 'Pending Approval',
+            approved: 'Approved',
+            processing: 'Processing',
+            delivered: 'Delivered',
+            rejected: 'Rejected',
+            cancelled: 'Cancelled'
+        }
+
         return (
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize ${statusStyles[status]}`}>
-                {status}
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize ${statusStyles[status] || statusStyles.pending_approval}`}>
+                {displayNames[status] || status}
             </span>
         )
+    }
+
+    const getStatusFilterLabel = (status) => {
+        const labels = {
+            all: 'All Orders',
+            pending_approval: 'Pending',
+            approved: 'Approved',
+            processing: 'Processing',
+            delivered: 'Delivered',
+            rejected: 'Rejected',
+            cancelled: 'Cancelled'
+        }
+        return labels[status] || status
     }
 
     return (
@@ -102,10 +146,6 @@ export default function MyOrdersPage() {
                         Track and manage your commodity orders
                     </p>
                 </div>
-                <Button variant="outline">
-                    <Download size={20} />
-                    Export Orders
-                </Button>
             </div>
 
             {/* Search and Filter */}
@@ -126,11 +166,11 @@ export default function MyOrdersPage() {
                             key={status}
                             onClick={() => setStatusFilter(status)}
                             className={`px-4 py-2.5 rounded-xl font-medium transition-all whitespace-nowrap border ${statusFilter === status
-                                    ? 'bg-primary border-primary text-white shadow-lg shadow-primary/25'
-                                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-primary/50'
+                                ? 'bg-primary border-primary text-white shadow-lg shadow-primary/25'
+                                : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-primary/50'
                                 }`}
                         >
-                            {status === 'all' ? 'All Orders' : status.charAt(0).toUpperCase() + status.slice(1)}
+                            {getStatusFilterLabel(status)}
                         </button>
                     ))}
                 </div>
@@ -138,53 +178,79 @@ export default function MyOrdersPage() {
 
             {/* Orders Table */}
             <Card className="overflow-hidden p-0">
-                {filteredOrders.length > 0 ? (
+                {loading ? (
+                    <div className="py-16 text-center">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                        <p className="mt-4 text-slate-600 dark:text-slate-400">Loading orders...</p>
+                    </div>
+                ) : filteredOrders.length > 0 ? (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
                                 <tr>
-                                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Order ID</th>
                                     <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Product</th>
-                                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Quantity</th>
                                     <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Amount</th>
+                                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Payment</th>
                                     <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Order Date</th>
                                     <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Status</th>
-                                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Actions</th>
+                                    <th className="px-6 py-4 text-right font-semibold text-slate-600 dark:text-slate-400">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                 {filteredOrders.map((order) => (
                                     <tr key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                                        <td className="px-6 py-4 font-mono text-sm font-semibold text-primary">
-                                            {order.id}
-                                        </td>
                                         <td className="px-6 py-4">
                                             <div>
                                                 <p className="font-semibold text-slate-900 dark:text-white">{order.productName}</p>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400">{order.category}</p>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">{order.productCategory}</p>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                                            {order.quantity}
-                                        </td>
                                         <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
-                                            {formatCurrency(order.amount)}
+                                            {formatCurrency(order.totalAmount)}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {order.paymentType === 'installment' ? (
+                                                <div className="space-y-2">
+                                                    <div className="text-xs text-slate-600 dark:text-slate-400">
+                                                        {formatCurrency(order.monthlyPayment)}/month × {order.duration}
+                                                    </div>
+                                                    <PaymentProgressBar
+                                                        totalInstallments={order.duration || 12}
+                                                        paidInstallments={order.deductionsPaid || 0}
+                                                        variant="compact"
+                                                    />
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-slate-600 dark:text-slate-400">One-off</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                                            {formatDate(order.orderDate)}
+                                            {order.orderedAt ? formatDate(order.orderedAt.toDate()) : 'N/A'}
                                         </td>
                                         <td className="px-6 py-4">
                                             {getStatusBadge(order.status)}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setSelectedOrder(order)}
-                                            >
-                                                <Eye size={16} />
-                                                View
-                                            </Button>
+                                            <div className="flex justify-end gap-2">
+                                                {order.paymentType === 'installment' && order.status !== 'pending_approval' && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleViewSchedule(order)}
+                                                        title="View Payment Schedule"
+                                                    >
+                                                        <Calendar size={16} />
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setSelectedOrder(order)}
+                                                >
+                                                    <Eye size={16} />
+                                                    View
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -209,7 +275,7 @@ export default function MyOrdersPage() {
             </Card>
 
             {/* Order Details Modal */}
-            {selectedOrder && (
+            {selectedOrder && !showScheduleModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <Card className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-6">
@@ -235,12 +301,14 @@ export default function MyOrdersPage() {
                                 </div>
                                 <div>
                                     <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Order Date</p>
-                                    <p className="text-slate-900 dark:text-white">{formatDate(selectedOrder.orderDate)}</p>
+                                    <p className="text-slate-900 dark:text-white">
+                                        {selectedOrder.orderedAt ? formatDate(selectedOrder.orderedAt.toDate()) : 'N/A'}
+                                    </p>
                                 </div>
                                 <div>
-                                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Delivery Date</p>
+                                    <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Approved Date</p>
                                     <p className="text-slate-900 dark:text-white">
-                                        {selectedOrder.deliveryDate ? formatDate(selectedOrder.deliveryDate) : 'Pending'}
+                                        {selectedOrder.approvedAt ? formatDate(selectedOrder.approvedAt.toDate()) : 'Pending'}
                                     </p>
                                 </div>
                             </div>
@@ -257,11 +325,7 @@ export default function MyOrdersPage() {
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-slate-600 dark:text-slate-400">Category</span>
-                                        <span className="font-semibold text-slate-900 dark:text-white">{selectedOrder.category}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-slate-600 dark:text-slate-400">Quantity</span>
-                                        <span className="font-semibold text-slate-900 dark:text-white">{selectedOrder.quantity}</span>
+                                        <span className="font-semibold text-slate-900 dark:text-white">{selectedOrder.productCategory}</span>
                                     </div>
                                 </div>
                             </div>
@@ -272,24 +336,65 @@ export default function MyOrdersPage() {
                             <div>
                                 <p className="text-xs font-semibold text-slate-500 uppercase mb-3">Payment Information</p>
                                 <div className="space-y-2">
-                                    <div className="flex justify-between">
-                                        <span className="text-slate-600 dark:text-slate-400">Payment Method</span>
-                                        <span className="font-semibold text-slate-900 dark:text-white">{selectedOrder.paymentMethod}</span>
+                                    < div className="flex justify-between">
+                                        <span className="text-slate-600 dark:text-slate-400">Payment Type</span>
+                                        <span className="font-semibold text-slate-900 dark:text-white capitalize">
+                                            {selectedOrder.paymentType === 'installment' ? `Installment (${selectedOrder.duration} months)` : 'One-off Payment'}
+                                        </span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-slate-600 dark:text-slate-400">Total Amount</span>
-                                        <span className="font-bold text-xl text-primary">{formatCurrency(selectedOrder.amount)}</span>
+                                        <span className="font-bold text-xl text-primary">{formatCurrency(selectedOrder.totalAmount)}</span>
                                     </div>
+                                    {selectedOrder.paymentType === 'installment' && (
+                                        <>
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-600 dark:text-slate-400">Monthly Payment</span>
+                                                <span className="font-semibold text-slate-900 dark:text-white">
+                                                    {formatCurrency(selectedOrder.monthlyPayment)}
+                                                </span>
+                                            </div>
+                                            <div className="mt-4">
+                                                <PaymentProgressBar
+                                                    totalInstallments={selectedOrder.duration || 12}
+                                                    paidInstallments={selectedOrder.deductionsPaid || 0}
+                                                    variant="detailed"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
+
+                            {/* Rejection Reason */}
+                            {selectedOrder.rejectionReason && (
+                                <>
+                                    <hr className="border-slate-200 dark:border-slate-700" />
+                                    <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                                        <p className="text-xs font-semibold text-red-900 dark:text-red-400 mb-1">
+                                            Rejection Reason:
+                                        </p>
+                                        <p className="text-sm text-red-800 dark:text-red-300">
+                                            {selectedOrder.rejectionReason}
+                                        </p>
+                                    </div>
+                                </>
+                            )}
 
                             <div className="flex gap-3 pt-4">
                                 <Button onClick={() => setSelectedOrder(null)} className="flex-1">
                                     Close
                                 </Button>
-                                {selectedOrder.status === 'pending' && (
-                                    <Button variant="outline" className="flex-1">
-                                        Cancel Order
+                                {selectedOrder.paymentType === 'installment' && selectedOrder.status !== 'pending_approval' && (
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1"
+                                        onClick={() => {
+                                            handleViewSchedule(selectedOrder)
+                                        }}
+                                    >
+                                        <Receipt size={16} />
+                                        View Schedule
                                     </Button>
                                 )}
                             </div>
@@ -297,6 +402,18 @@ export default function MyOrdersPage() {
                     </Card>
                 </div>
             )}
+
+            {/* Installment Schedule Modal */}
+            <InstallmentScheduleModal
+                isOpen={showScheduleModal}
+                onClose={() => {
+                    setShowScheduleModal(false)
+                    setSelectedSchedule(null)
+                    setSelectedOrder(null)
+                }}
+                order={selectedOrder}
+                schedule={selectedSchedule}
+            />
         </div>
     )
 }

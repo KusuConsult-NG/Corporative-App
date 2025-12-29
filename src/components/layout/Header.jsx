@@ -1,10 +1,23 @@
 import { Bell, Menu, Moon, Sun } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useThemeStore } from '../../store/themeStore'
+import { subscribeToUnreadCount } from '../../utils/notificationUtils'
+import NotificationBadge from '../NotificationBadge'
 
 export default function Header() {
     const { user } = useAuthStore()
     const { theme, toggleTheme } = useThemeStore()
+    const navigate = useNavigate()
+    const [unreadCount, setUnreadCount] = useState(0)
+
+    useEffect(() => {
+        if (!user?.userId) return
+
+        const unsubscribe = subscribeToUnreadCount(user.userId, setUnreadCount)
+        return () => unsubscribe()
+    }, [user])
 
     return (
         <header className="h-20 flex items-center justify-between px-6 lg:px-10 border-b border-slate-200 dark:border-slate-800 bg-surface-light/80 dark:bg-surface-dark/80 backdrop-blur-sm sticky top-0 z-20">
@@ -34,11 +47,12 @@ export default function Header() {
 
                 {/* Notifications */}
                 <button
+                    onClick={() => navigate('/member/notifications')}
                     className="relative p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700 transition-colors"
                     aria-label="Notifications"
                 >
                     <Bell size={20} />
-                    <span className="absolute top-2 right-2 size-2.5 bg-red-500 border-2 border-surface-light dark:border-surface-dark rounded-full"></span>
+                    <NotificationBadge count={unreadCount} />
                 </button>
 
                 {/* User Profile */}

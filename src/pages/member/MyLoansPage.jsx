@@ -52,16 +52,15 @@ export default function MyLoansPage() {
         fetchLoans()
     }, [user?.memberId])
 
-    // Filter loans by status
+    // Filter loans by status - Members can ONLY see activated loans
     const activeLoans = loans.filter(loan =>
-        loan.status === 'active' ||
-        loan.status === 'approved' ||
-        loan.status === 'pending_guarantors'
+        loan.status === 'active' // Only show activated loans to members
     )
 
     const loanHistory = loans.filter(loan =>
         loan.status === 'completed' ||
-        loan.status === 'rejected'
+        loan.status === 'rejected' ||
+        loan.status === 'closed'
     )
 
     // Calculate overall loan statistics

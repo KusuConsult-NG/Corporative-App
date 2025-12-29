@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
     ArrowLeft,
@@ -14,6 +14,7 @@ import {
 import { formatCurrency } from '../../utils/formatters'
 import { loansAPI } from '../../services/api'
 import { useAuthStore } from '../../store/authStore'
+import { calculateLoanEligibility, calculateNewLoanRepayment, getUserSavingsBalance } from '../../utils/loanUtils'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
@@ -21,16 +22,45 @@ import Select from '../../components/ui/Select'
 import GuarantorSelector from '../../components/GuarantorSelector'
 
 const LOAN_TYPES = [
-    { value: 'personal', label: 'Personal Loan', maxAmount: 1000000, maxDuration: 12, rate: 3 },
-    { value: 'business', label: 'Business Loan', maxAmount: 5000000, maxDuration: 12, rate: 3 },
-    { value: 'emergency', label: 'Emergency Loan', maxAmount: 200000, maxDuration: 12, rate: 3 },
-    { value: 'education', label: 'Education Loan', maxAmount: 1500000, maxDuration: 12, rate: 3 },
+    {
+        value: 'swift_relief',
+        label: 'Swift Relief Loan',
+        amount: 30000, // Fixed amount
+        fixedAmount: true,
+        duration: 3, // Fixed 3 months
+        fixedDuration: true,
+        rate: 5, // 5% flat
+        description: 'Quick relief loan for urgent needs. Fixed amount of ₦30,000 at 5% flat interest over 3 months.',
+        eligibility: 'Must have paid membership fee (₦2,000)'
+    },
+    {
+        value: 'advancement',
+        label: 'Advancement Loan',
+        multiplier: 2, // 2x savings
+        rate: 10, // 10% flat
+        duration: 6, // Fixed 6 months
+        fixedDuration: true,
+        description: 'Get twice your savings balance at 10% flat interest over 6 months.',
+        eligibility: 'Must have consistent savings for at least 3 months'
+    },
+    {
+        value: 'progress_plus',
+        label: 'Progress+ Loan',
+        multiplier: 3, // 3x savings
+        rate: 15, // 15% per annum
+        maxDuration: 12,
+        description: 'Get three times your savings balance at 15% per annum over 12 months.',
+        eligibility: 'Must have consistent savings for at least 6 months'
+    },
 ]
 
 export default function LoanApplicationPage() {
     const navigate = useNavigate()
     const { user } = useAuthStore()
     const [submitting, setSubmitting] = useState(false)
+    const [checkingEligibility, setCheckingEligibility] = useState(false)
+    const [eligibility, setEligibility] = useState(null)
+    const [savingsBalance, setSavingsBalance] = useState(0)
 
     // Form State
     const [formData, setFormData] = useState({
@@ -39,12 +69,56 @@ export default function LoanApplicationPage() {
         duration: '',
         monthlyDeduction: '', // Custom monthly payment amount
         purpose: '',
+        currentSalary: '',
+        payslips: [], // File uploads for 2 payslips
         guarantors: [],
         agreedToTerms: false
     })
 
     // Validation Errors
     const [errors, setErrors] = useState({})
+
+    // Fetch savings balance on mount
+    useEffect(() => {
+        const fetchSavings = async () => {
+            if (user?.memberId) {
+                const balance = await getUserSavingsBalance(user.memberId)
+                setSavingsBalance(balance)
+            }
+        }
+        fetchSavings()
+    }, [user?.memberId])
+
+    // Check eligibility when loan type changes
+    useEffect(() => {
+        const checkEligibility = async () => {
+            if (!formData.loanType || !user) return
+
+            setCheckingEligibility(true)
+            const result = await calculateLoanEligibility(user.userId, user.memberId, formData.loanType)
+            setEligibility(result)
+            setCheckingEligibility(false)
+
+            // Auto-set amount for Swift Relief (fixed)
+            const selectedLoan = LOAN_TYPES.find(t => t.value === formData.loanType)
+            if (selectedLoan?.fixedAmount && result.eligible) {
+                setFormData(prev => ({
+                    ...prev,
+                    amount: selectedLoan.amount.toString(),
+                    duration: selectedLoan.duration?.toString() || prev.duration
+                }))
+            } else if (selectedLoan?.multiplier && result.eligible) {
+                // For Advancement and Progress+, show max amount but let user choose
+                setFormData(prev => ({
+                    ...prev,
+                    amount: result.maxAmount.toString(),
+                    duration: selectedLoan.duration?.toString() || prev.duration
+                }))
+            }
+        }
+
+        checkEligibility()
+    }, [formData.loanType, user])
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target
@@ -84,27 +158,57 @@ export default function LoanApplicationPage() {
         })
     }
 
+    const handlePayslipUpload = (e) => {
+        const files = Array.from(e.target.files)
+        if (files.length > 2) {
+            setErrors({ ...errors, payslips: 'Maximum 2 payslips allowed' })
+            return
+        }
+        setFormData({ ...formData, payslips: files })
+        setErrors({ ...errors, payslips: null })
+    }
+
     const validateForm = () => {
         const newErrors = {}
         const selectedLoan = LOAN_TYPES.find(t => t.value === formData.loanType)
 
         if (!formData.loanType) newErrors.loanType = 'Please select a loan type'
 
+        // Check eligibility
+        if (eligibility && !eligibility.eligible) {
+            newErrors.loanType = eligibility.message
+        }
+
         if (!formData.amount) {
             newErrors.amount = 'Please enter an amount'
         } else if (isNaN(formData.amount) || Number(formData.amount) <= 0) {
             newErrors.amount = 'Please enter a valid amount'
-        } else if (selectedLoan && Number(formData.amount) > selectedLoan.maxAmount) {
-            newErrors.amount = `Maximum amount is ${formatCurrency(selectedLoan.maxAmount)}`
+        } else if (eligibility && Number(formData.amount) > eligibility.maxAmount) {
+            newErrors.amount = `Maximum amount is ${formatCurrency(eligibility.maxAmount)}`
+        }
+
+        // For Swift Relief, amount must be exactly 30,000
+        if (selectedLoan?.value === 'swift_relief' && Number(formData.amount) !== 30000) {
+            newErrors.amount = 'Swift Relief Loan amount must be exactly ₦30,000'
         }
 
         if (!formData.duration) {
             newErrors.duration = 'Please enter loan duration'
-        } else if (selectedLoan && Number(formData.duration) > selectedLoan.maxDuration) {
+        } else if (selectedLoan?.fixedDuration && Number(formData.duration) !== selectedLoan.duration) {
+            newErrors.duration = `Duration for this loan type must be ${selectedLoan.duration} months`
+        } else if (selectedLoan?.maxDuration && Number(formData.duration) > selectedLoan.maxDuration) {
             newErrors.duration = `Maximum duration is ${selectedLoan.maxDuration} months`
         }
 
         if (!formData.purpose.trim()) newErrors.purpose = 'Please state the purpose of this loan'
+
+        if (!formData.currentSalary || Number(formData.currentSalary) <= 0) {
+            newErrors.currentSalary = 'Please enter your current salary'
+        }
+
+        if (formData.payslips.length < 2) {
+            newErrors.payslips = 'Please upload your last 2 payslips'
+        }
 
         // Guarantor is mandatory - minimum 1 required
         if (formData.guarantors.length < 1) {
@@ -151,6 +255,8 @@ export default function LoanApplicationPage() {
                 amount: Number(formData.amount),
                 duration: Number(formData.duration),
                 purpose: formData.purpose,
+                currentSalary: Number(formData.currentSalary),
+                payslipsUploaded: formData.payslips.length, // Note: actual file upload would need storage
                 guarantors: formData.guarantors,
                 guarantorsRequired: formData.guarantors.length
             })
@@ -213,6 +319,29 @@ export default function LoanApplicationPage() {
                                             error={errors.loanType}
                                             placeholder="Select loan type..."
                                         />
+                                        {/* Eligibility Status */}
+                                        {checkingEligibility && (
+                                            <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center gap-2">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                                                <span className="text-sm text-blue-700 dark:text-blue-400">Checking eligibility...</span>
+                                            </div>
+                                        )}
+                                        {eligibility && formData.loanType && !checkingEligibility && (
+                                            <div className={`mt-2 p-3 rounded-lg ${eligibility.eligible
+                                                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                                                : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                                                }`}>
+                                                <p className="text-sm font-medium">{eligibility.message}</p>
+                                            </div>
+                                        )}
+                                        {/* Savings Balance Display */}
+                                        {savingsBalance > 0 && (
+                                            <div className="mt-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                                                <p className="text-sm text-purple-700 dark:text-purple-400">
+                                                    <strong>Your Savings:</strong> {formatCurrency(savingsBalance)}
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                     <Input
                                         label="Amount (₦)"
@@ -223,6 +352,7 @@ export default function LoanApplicationPage() {
                                         onChange={handleInputChange}
                                         error={errors.amount}
                                         icon={Banknote}
+                                        disabled={selectedLoanDetails?.fixedAmount}
                                     />
                                     <Input
                                         label="Duration (Months)"
@@ -235,7 +365,51 @@ export default function LoanApplicationPage() {
                                         onChange={handleInputChange}
                                         error={errors.duration}
                                         icon={Calendar}
+                                        disabled={selectedLoanDetails?.fixedDuration}
                                     />
+                                    <div className="md:col-span-2">
+                                        <Input
+                                            label="Current Monthly Salary (₦)"
+                                            name="currentSalary"
+                                            type="number"
+                                            placeholder="Enter your gross monthly salary"
+                                            value={formData.currentSalary}
+                                            onChange={handleInputChange}
+                                            error={errors.currentSalary}
+                                            icon={Banknote}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <div className="flex flex-col gap-2">
+                                            <label className="text-slate-900 dark:text-gray-200 text-sm font-semibold">
+                                                Upload Last 2 Payslips <span className="text-red-500">*</span>
+                                            </label>
+                                            <input
+                                                type="file"
+                                                accept=".pdf,.jpg,.jpeg,.png"
+                                                multiple
+                                                onChange={handlePayslipUpload}
+                                                className="flex w-full rounded-xl border border-[#cfdbe7] dark:border-gray-600 bg-white dark:bg-gray-800 p-3 text-sm text-slate-900 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90 transition-all"
+                                            />
+                                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                Upload your last 2 months payslips (PDF, JPG, or PNG)
+                                            </p>
+                                            {formData.payslips.length > 0 && (
+                                                <div className="mt-2 flex flex-wrap gap-2">
+                                                    {Array.from(formData.payslips).map((file, idx) => (
+                                                        <span key={idx} className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs">
+                                                            <CheckCircle size={14} />
+                                                            {file.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {errors.payslips && (
+                                                <p className="text-red-500 text-xs mt-1">{errors.payslips}</p>
+                                            )}
+                                        </div>
+                                    </div>
                                     <div className="md:col-span-2">
                                         <Input
                                             label="Preferred Monthly Deduction (₦) - Optional"
@@ -382,25 +556,89 @@ export default function LoanApplicationPage() {
                                     <h3 className="font-bold text-slate-900 dark:text-white">
                                         {selectedLoanDetails.label}
                                     </h3>
-                                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                                        Selected Loan Type
+                                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                                        {selectedLoanDetails.description}
                                     </p>
                                 </div>
                             </div>
                             <div className="space-y-3 text-sm">
-                                <div className="flex justify-between">
+                                <div className="flex justify-between items-center p-2 bg-white/50 dark:bg-slate-800/50 rounded-lg">
                                     <span className="text-slate-600 dark:text-slate-400">Interest Rate</span>
-                                    <span className="font-bold text-slate-900 dark:text-white">{selectedLoanDetails.rate}% p.a.</span>
+                                    <span className="font-bold text-slate-900 dark:text-white">
+                                        {selectedLoanDetails.rate}% {selectedLoanDetails.value === 'progress_plus' ? 'per annum' : 'flat'}
+                                    </span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600 dark:text-slate-400">Max Amount</span>
-                                    <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(selectedLoanDetails.maxAmount)}</span>
+                                <div className="flex justify-between items-center p-2 bg-white/50 dark:bg-slate-800/50 rounded-lg">
+                                    <span className="text-slate-600 dark:text-slate-400">
+                                        {selectedLoanDetails.fixedAmount ? 'Fixed Amount' : 'Max Amount'}
+                                    </span>
+                                    <span className="font-bold text-slate-900 dark:text-white">
+                                        {selectedLoanDetails.fixedAmount
+                                            ? formatCurrency(selectedLoanDetails.amount)
+                                            : eligibility?.maxAmount ? formatCurrency(eligibility.maxAmount) : 'Check eligibility'
+                                        }
+                                    </span>
                                 </div>
-                                <div className="flex justify-between">
-                                    <span className="text-slate-600 dark:text-slate-400">Max Duration</span>
-                                    <span className="font-bold text-slate-900 dark:text-white">{selectedLoanDetails.maxDuration} months</span>
+                                <div className="flex justify-between items-center p-2 bg-white/50 dark:bg-slate-800/50 rounded-lg">
+                                    <span className="text-slate-600 dark:text-slate-400">Duration</span>
+                                    <span className="font-bold text-slate-900 dark:text-white">
+                                        {selectedLoanDetails.duration || selectedLoanDetails.maxDuration} month{(selectedLoanDetails.duration || selectedLoanDetails.maxDuration) > 1 ? 's' : ''}
+                                        {selectedLoanDetails.fixedDuration && ' (Fixed)'}
+                                    </span>
+                                </div>
+                                <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">
+                                        <strong>Eligibility:</strong>
+                                    </p>
+                                    <p className="text-xs text-slate-600 dark:text-slate-300">
+                                        {selectedLoanDetails.eligibility}
+                                    </p>
                                 </div>
                             </div>
+                        </Card>
+                    )}
+
+                    {/* Repayment Preview */}
+                    {formData.amount && formData.duration && formData.loanType && (
+                        <Card>
+                            <h3 className="font-bold text-slate-900 dark:text-white mb-4">
+                                Repayment Preview
+                            </h3>
+                            {(() => {
+                                const repayment = calculateNewLoanRepayment(
+                                    Number(formData.amount),
+                                    formData.loanType,
+                                    Number(formData.duration)
+                                )
+                                return (
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600 dark:text-slate-400">Principal</span>
+                                            <span className="font-semibold text-slate-900 dark:text-white">
+                                                {formatCurrency(repayment.principal)}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600 dark:text-slate-400">Interest ({repayment.interestRate}%)</span>
+                                            <span className="font-semibold text-slate-900 dark:text-white">
+                                                {formatCurrency(repayment.interestAmount)}
+                                            </span>
+                                        </div>
+                                        <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between">
+                                            <span className="text-slate-600 dark:text-slate-400 font-bold">Total Repayment</span>
+                                            <span className="font-bold text-primary">
+                                                {formatCurrency(repayment.totalRepayment)}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-600 dark:text-slate-400">Monthly Payment</span>
+                                            <span className="font-bold text-slate-900 dark:text-white">
+                                                {formatCurrency(repayment.monthlyPayment)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                )
+                            })()}
                         </Card>
                     )}
 

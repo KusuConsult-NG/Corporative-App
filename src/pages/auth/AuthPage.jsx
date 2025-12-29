@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Mail, Lock, User, Building2, Hash, ArrowRight, Info, Shield } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
+import { canAccessAdmin } from '../../utils/permissions'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
 
@@ -22,10 +23,23 @@ export default function AuthPage() {
     const [registerData, setRegisterData] = useState({
         title: '',
         firstName: '',
+        middleName: '',
         lastName: '',
         email: '',
         staffId: '',
         department: '',
+        rank: '',
+        position: '',
+        gender: '',
+        dateOfBirth: '',
+        stateOfOrigin: '',
+        address: '',
+        nextOfKin: {
+            name: '',
+            phone: '',
+            relation: '',
+            address: ''
+        },
         password: '',
     })
 
@@ -63,7 +77,7 @@ export default function AuthPage() {
         if (result.success) {
             // Get updated user from store
             const { user } = useAuthStore.getState()
-            navigate(user.role === 'admin' || user.role === 'superadmin' ? '/admin/dashboard' : '/member/dashboard')
+            navigate(canAccessAdmin(user) ? '/admin/dashboard' : '/member/dashboard')
         } else {
             setErrors({ password: result.error || 'Invalid credentials' })
         }
@@ -266,7 +280,7 @@ export default function AuthPage() {
                                 </select>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <Input
                                     label="First Name"
                                     type="text"
@@ -275,6 +289,14 @@ export default function AuthPage() {
                                     value={registerData.firstName}
                                     onChange={(e) => setRegisterData({ ...registerData, firstName: e.target.value })}
                                     required
+                                />
+                                <Input
+                                    label="Middle Name"
+                                    type="text"
+                                    icon={User}
+                                    placeholder="Michael"
+                                    value={registerData.middleName}
+                                    onChange={(e) => setRegisterData({ ...registerData, middleName: e.target.value })}
                                 />
                                 <Input
                                     label="Last Name"
@@ -318,6 +340,143 @@ export default function AuthPage() {
                                     onChange={(e) => setRegisterData({ ...registerData, department: e.target.value })}
                                     required
                                 />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-slate-900 dark:text-gray-200 text-sm font-semibold">
+                                        Rank <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        value={registerData.rank}
+                                        onChange={(e) => setRegisterData({ ...registerData, rank: e.target.value })}
+                                        className="w-full px-4 py-3 rounded-lg border border-[#e7edf3] dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        required
+                                    >
+                                        <option value="">Select Rank</option>
+                                        <option value="Professor">Professor</option>
+                                        <option value="Associate Professor">Associate Professor</option>
+                                        <option value="Senior Lecturer">Senior Lecturer</option>
+                                        <option value="Lecturer I">Lecturer I</option>
+                                        <option value="Lecturer II">Lecturer II</option>
+                                        <option value="Assistant Lecturer">Assistant Lecturer</option>
+                                        <option value="Senior Administrative Officer">Senior Administrative Officer</option>
+                                        <option value="Administrative Officer">Administrative Officer</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <Input
+                                    label="Position"
+                                    type="text"
+                                    placeholder="e.g., Head of Department"
+                                    value={registerData.position}
+                                    onChange={(e) => setRegisterData({ ...registerData, position: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-slate-900 dark:text-gray-200 text-sm font-semibold">
+                                        Gender <span className="text-red-500">*</span>
+                                    </label>
+                                    <select
+                                        value={registerData.gender}
+                                        onChange={(e) => setRegisterData({ ...registerData, gender: e.target.value })}
+                                        className="w-full px-4 py-3 rounded-lg border border-[#e7edf3] dark:border-gray-700 bg-white dark:bg-gray-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                                        required
+                                    >
+                                        <option value="">Select Gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                    </select>
+                                </div>
+                                <Input
+                                    label="Date of Birth"
+                                    type="date"
+                                    value={registerData.dateOfBirth}
+                                    onChange={(e) => setRegisterData({ ...registerData, dateOfBirth: e.target.value })}
+                                    required
+                                />
+                                <Input
+                                    label="State of Origin"
+                                    type="text"
+                                    placeholder="e.g., Plateau State"
+                                    value={registerData.stateOfOrigin}
+                                    onChange={(e) => setRegisterData({ ...registerData, stateOfOrigin: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <label className="text-slate-900 dark:text-gray-200 text-sm font-semibold">
+                                    Residential Address <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                    rows="2"
+                                    className="flex w-full rounded-xl border bg-white dark:bg-gray-800 p-4 text-base text-slate-900 dark:text-white placeholder:text-[#93adc8] dark:placeholder:text-slate-500 transition-all border-[#cfdbe7] dark:border-gray-600 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                    placeholder="Enter your full address"
+                                    value={registerData.address}
+                                    onChange={(e) => setRegisterData({ ...registerData, address: e.target.value })}
+                                    required
+                                />
+                            </div>
+
+                            <div className="border-t border-slate-200 dark:border-gray-700 pt-4 mt-2">
+                                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Next of Kin Information</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <Input
+                                        label="Next of Kin Name"
+                                        type="text"
+                                        placeholder="Full name"
+                                        value={registerData.nextOfKin.name}
+                                        onChange={(e) => setRegisterData({
+                                            ...registerData,
+                                            nextOfKin: { ...registerData.nextOfKin, name: e.target.value }
+                                        })}
+                                        required
+                                    />
+                                    <Input
+                                        label="Next of Kin Phone"
+                                        type="tel"
+                                        placeholder="08012345678"
+                                        value={registerData.nextOfKin.phone}
+                                        onChange={(e) => setRegisterData({
+                                            ...registerData,
+                                            nextOfKin: { ...registerData.nextOfKin, phone: e.target.value }
+                                        })}
+                                        required
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                                    <Input
+                                        label="Relationship"
+                                        type="text"
+                                        placeholder="e.g., Spouse, Sibling"
+                                        value={registerData.nextOfKin.relation}
+                                        onChange={(e) => setRegisterData({
+                                            ...registerData,
+                                            nextOfKin: { ...registerData.nextOfKin, relation: e.target.value }
+                                        })}
+                                        required
+                                    />
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-slate-900 dark:text-gray-200 text-sm font-semibold">
+                                            Next of Kin Address <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="flex w-full rounded-xl border bg-white dark:bg-gray-800 px-4 py-3 text-base text-slate-900 dark:text-white placeholder:text-[#93adc8] dark:placeholder:text-slate-500 transition-all border-[#cfdbe7] dark:border-gray-600 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                            placeholder="Address"
+                                            value={registerData.nextOfKin.address}
+                                            onChange={(e) => setRegisterData({
+                                                ...registerData,
+                                                nextOfKin: { ...registerData.nextOfKin, address: e.target.value }
+                                            })}
+                                            required
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
                             <Input

@@ -30,7 +30,12 @@ if (typeof window !== 'undefined') {
 const db = getFirestore(app)
 
 // Initialize Auth
+import { setPersistence, browserLocalPersistence } from "firebase/auth"
 const auth = getAuth(app)
+// Force local storage persistence to work better with Playwright tests
+if (typeof window !== 'undefined') {
+    setPersistence(auth, browserLocalPersistence).catch(console.error)
+}
 
 // Initialize Storage
 const storage = getStorage(app)

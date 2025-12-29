@@ -1,243 +1,228 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Clock, FileText, Calendar, User } from 'lucide-react'
-import { collection, getDocs, doc, updateDoc, serverTimestamp, orderBy, query, where } from 'firebase/firestore'
+import { FileText, Download, Calendar, TrendingUp, Users, DollarSign, FileSpreadsheet } from 'lucide-react'
+import { formatCurrency, formatDate } from '../../utils/formatters'
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
-import Card from '../../components/ui/Card'
+import { exportToPDF, exportToExcel } from '../../utils/exportUtils'
 import Button from '../../components/ui/Button'
+import Card from '../../components/ui/Card'
 
 export default function AdminReportsPage() {
-    const [reports, setReports] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [filter, setFilter] = useState('pending')
-    const [processingId, setProcessingId] = useState(null)
+    const [reportType, setReportType] = useState('financial')
+    const [dateRange, setDateRange] = useState('monthly')
+    const [loading, setLoading] = useState(false)
+    const [reportData, setReportData] = useState(null)
 
-    useEffect(() => {
-        fetchReports()
-    }, [filter])
-
-    const fetchReports = async () => {
+    const generateReport = async () => {
         setLoading(true)
         try {
-            let q
-            if (filter === 'all') {
-                q = query(collection(db, 'reports'), orderBy('submittedAt', 'desc'))
-            } else {
-                q = query(
-                    collection(db, 'reports'),
-                    where('status', '==', filter),
-                    orderBy('submittedAt', 'desc')
-                )
+            // Calculate date range
+            const endDate = new Date()
+            const startDate = new Date()
+
+            switch (dateRange) {
+                case 'daily':
+                    startDate.setDate(startDate.getDate() - 1)
+                    break
+                case 'weekly':
+                    startDate.setDate(startDate.getDate() - 7)
+                    break
+                case 'monthly':
+                    startDate.setMonth(startDate.getMonth() - 1)
+                    break
+                case 'quarterly':
+                    startDate.setMonth(startDate.getMonth() - 3)
+                    break
+                case 'annual':
+                    startDate.setFullYear(startDate.getFullYear() - 1)
+                    break
             }
 
-            const snapshot = await getDocs(q)
-            const reportsList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }))
+            if (reportType === 'financial') {
+                // Fetch savings data
+                const walletsSnapshot = await getDocs(collection(db, 'wallets'))
+                const totalSavings = walletsSnapshot.docs.reduce(
+                    (sum, doc) => sum + (doc.data().balance || 0),
+                    0
+                )
 
-            setReports(reportsList)
+                // Fetch active loans
+                const loansQuery = query(
+                    collection(db, 'loans'),
+                    where('status', '==', 'active')
+                )
+                const loansSnapshot = await getDocs(loansQuery)
+                const totalLoans = loansSnapshot.docs.reduce(
+                    (sum, doc) => sum + (doc.data().amount || 0),
+                    0
+                )
+
+                setReportData({
+                    type: 'Financial Summary',
+                    period: dateRange,
+                    metrics: {
+                        'Total Savings': totalSavings,
+                        'Active Loans': totalLoans,
+                        'Net Position': totalSavings - totalLoans
+                    }
+                })
+            } else if (reportType === 'loans') {
+                const loansSnapshot = await getDocs(collection(db, 'loans'))
+                const allLoans = loansSnapshot.docs.map(doc => doc.data())
+
+                const byStatus = {
+                    pending: allLoans.filter(l => l.status === 'pending').length,
+                    approved: allLoans.filter(l => l.status === 'approved').length,
+                    active: allLoans.filter(l => l.status === 'active').length,
+                    completed: allLoans.filter(l => l.status === 'completed').length
+                }
+
+                setReportData({
+                    type: 'Loan Report',
+                    period: dateRange,
+                    metrics: {
+                        'Total Applications': allLoans.length,
+                        'Pending': byStatus.pending,
+                        'Approved': byStatus.approved,
+                        'Active': byStatus.active,
+                        'Completed': byStatus.completed
+                    }
+                })
+            } else if (reportType === 'members') {
+                const usersSnapshot = await getDocs(collection(db, 'users'))
+                const allUsers = usersSnapshot.docs.map(doc => doc.data())
+
+                setReportData({
+                    type: 'Member Report',
+                    period: dateRange,
+                    metrics: {
+                        'Total Members': allUsers.length,
+                        'Verified Members': allUsers.filter(u => u.emailVerified).length,
+                        'Paid Registration Fee': allUsers.filter(u => u.registrationFeePaid).length
+                    }
+                })
+            }
         } catch (error) {
-            console.error('Error fetching reports:', error)
+            console.error('Error generating report:', error)
         } finally {
             setLoading(false)
         }
     }
 
-    const handleStatusUpdate = async (reportId, newStatus, response = '') => {
-        setProcessingId(reportId)
-        try {
-            await updateDoc(doc(db, 'reports', reportId), {
-                status: newStatus,
-                response: response || null,
-                respondedBy: 'Admin',
-                respondedAt: serverTimestamp()
-            })
-
-            await fetchReports()
-            alert('Report status updated successfully!')
-        } catch (error) {
-            console.error('Error updating report:', error)
-            alert('Failed to update report status')
-        } finally {
-            setProcessingId(null)
-        }
-    }
-
-    const formatDate = (timestamp) => {
-        if (!timestamp) return 'N/A'
-        const date = timestamp.toDate()
-        return new Intl.DateTimeFormat('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        }).format(date)
-    }
-
-    const getStatusBadge = (status) => {
-        const config = {
-            pending: { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', label: 'Pending' },
-            in_review: { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', label: 'In Review' },
-            resolved: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400', label: 'Resolved' },
-            closed: { bg: 'bg-gray-100 dark:bg-gray-900/30', text: 'text-gray-700 dark:text-gray-400', label: 'Closed' }
-        }
-        const item = config[status] || config.pending
-        return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.bg} ${item.text}`}>{item.label}</span>
-    }
-
-    const getCategoryBadge = (category) => {
-        const labels = {
-            complaint: 'Complaint',
-            technical_issue: 'Technical Issue',
-            suggestion: 'Suggestion',
-            financial_query: 'Financial Query',
-            other: 'Other'
-        }
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">{labels[category] || category}</span>
-    }
-
-    const getStatusCount = (status) => status === 'all' ? reports.length : reports.filter(r => r.status === status).length
-
     return (
         <div className="p-6 lg:p-10 max-w-7xl mx-auto">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Reports Management</h1>
-                <p className="text-slate-600 dark:text-slate-400">Review and manage member reports and feedback</p>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Reports</h1>
+                <p className="text-slate-600 dark:text-slate-400 mt-1">
+                    Generate and view comprehensive reports
+                </p>
             </div>
 
-            {/* Filters */}
-            <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                {['pending', 'in_review', 'resolved', 'closed', 'all'].map(status => (
-                    <button
-                        key={status}
-                        onClick={() => setFilter(status)}
-                        className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === status
-                            ? 'bg-primary text-white'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
-                            }`}
-                    >
-                        {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')} ({getStatusCount(status)})
-                    </button>
-                ))}
-            </div>
+            {/* Report Configuration */}
+            <Card className="mb-6">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
+                    Generate Report
+                </h2>
 
-            {/* Reports List */}
-            {loading ? (
-                <div className="text-center py-12">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <p className="mt-4 text-slate-600 dark:text-slate-400">Loading reports...</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                            Report Type
+                        </label>
+                        <select
+                            className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            value={reportType}
+                            onChange={(e) => setReportType(e.target.value)}
+                        >
+                            <option value="financial">Financial Summary</option>
+                            <option value="loans">Loan Report</option>
+                            <option value="members">Member Report</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                            Date Range
+                        </label>
+                        <select
+                            className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            value={dateRange}
+                            onChange={(e) => setDateRange(e.target.value)}
+                        >
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="annual">Annual</option>
+                        </select>
+                    </div>
+
+                    <div className="flex items-end">
+                        <Button
+                            onClick={generateReport}
+                            loading={loading}
+                            className="w-full"
+                        >
+                            <FileText size={18} />
+                            Generate Report
+                        </Button>
+                    </div>
                 </div>
-            ) : reports.length === 0 ? (
-                <Card className="text-center py-12">
-                    <FileText size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No {filter !== 'all' ? filter : ''} reports</h3>
-                    <p className="text-slate-600 dark:text-slate-400">No reports found</p>
-                </Card>
-            ) : (
-                <div className="space-y-4">
-                    {reports.map((report) => (
-                        <Card key={report.id} className="hover:shadow-lg transition-shadow">
-                            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                                <div className="flex-1">
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                {getCategoryBadge(report.category)}
-                                                {getStatusBadge(report.status)}
-                                            </div>
-                                            <h3 className="font-semibold text-slate-900 dark:text-white text-lg">{report.subject}</h3>
-                                        </div>
-                                    </div>
+            </Card>
 
-                                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 mb-3">
-                                        <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{report.description}</p>
-                                    </div>
+            {/* Report Results */}
+            {reportData && (
+                <Card>
+                    <div className="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                                {reportData.type}
+                            </h2>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 capitalize">
+                                {reportData.period} Period
+                            </p>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => exportToPDF(reportData, `${reportData.type.replace(/\s+/g, '_')}_${reportData.period}.pdf`)}
+                            >
+                                <Download size={16} />
+                                PDF
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    const excelData = Object.entries(reportData.metrics).map(([key, value]) => ({
+                                        Metric: key,
+                                        Value: value
+                                    }))
+                                    exportToExcel(excelData, `${reportData.type.replace(/\s+/g, '_')}_${reportData.period}.xlsx`)
+                                }}
+                            >
+                                <FileSpreadsheet size={16} />
+                                Excel
+                            </Button>
+                        </div>
+                    </div>
 
-                                    <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 mb-3">
-                                        <div className="flex items-center gap-1">
-                                            <User size={14} />
-                                            <span>{report.userName}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <Calendar size={14} />
-                                            <span>Submitted: {formatDate(report.submittedAt)}</span>
-                                        </div>
-                                    </div>
-
-                                    {report.response && (
-                                        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                            <p className="text-xs font-semibold text-blue-900 dark:text-blue-400 mb-1">Admin Response:</p>
-                                            <p className="text-sm text-blue-800 dark:text-blue-300">{report.response}</p>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {report.status === 'pending' && (
-                                    <div className="flex lg:flex-col gap-2">
-                                        <Button
-                                            size="sm"
-                                            onClick={() => {
-                                                const response = prompt('Add response message (optional):')
-                                                if (response !== null) {
-                                                    handleStatusUpdate(report.id, 'in_review', response)
-                                                }
-                                            }}
-                                            disabled={processingId === report.id}
-                                            className="flex-1 lg:flex-none bg-blue-600 hover:bg-blue-700"
-                                        >
-                                            Start Review
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            onClick={() => {
-                                                const response = prompt('Resolution message (required):')
-                                                if (response && response.trim()) {
-                                                    handleStatusUpdate(report.id, 'resolved', response)
-                                                } else if (response !== null) {
-                                                    alert('Please provide a resolution message')
-                                                }
-                                            }}
-                                            disabled={processingId === report.id}
-                                            className="flex-1 lg:flex-none bg-green-600 hover:bg-green-700"
-                                        >
-                                            Resolve
-                                        </Button>
-                                    </div>
-                                )}
-
-                                {report.status === 'in_review' && (
-                                    <Button
-                                        size="sm"
-                                        onClick={() => {
-                                            const response = prompt('Resolution message (required):')
-                                            if (response && response.trim()) {
-                                                handleStatusUpdate(report.id, 'resolved', response)
-                                            } else if (response !== null) {
-                                                alert('Please provide a resolution message')
-                                            }
-                                        }}
-                                        disabled={processingId === report.id}
-                                        className="bg-green-600 hover:bg-green-700"
-                                    >
-                                        Mark as Resolved
-                                    </Button>
-                                )}
-
-                                {report.status === 'resolved' && (
-                                    <Button
-                                        size="sm"
-                                        onClick={() => handleStatusUpdate(report.id, 'closed')}
-                                        disabled={processingId === report.id}
-                                        variant="outline"
-                                    >
-                                        Close Report
-                                    </Button>
-                                )}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {Object.entries(reportData.metrics).map(([key, value]) => (
+                            <div key={key} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                                    {key}
+                                </p>
+                                <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                                    {typeof value === 'number' && key.includes('Total') || key.includes('Position') || key.includes('Loans') || key.includes('Savings')
+                                        ? formatCurrency(value)
+                                        : value}
+                                </p>
                             </div>
-                        </Card>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                </Card>
             )}
         </div>
     )

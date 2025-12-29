@@ -1,12 +1,19 @@
 import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle, Clock, ShoppingBag, User, Calendar, DollarSign } from 'lucide-react'
-import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, orderBy } from 'firebase/firestore'
+import { CheckCircle, XCircle, Clock, ShoppingBag, User, Calendar, DollarSign, AlertCircle } from 'lucide-react'
+import { collection, query, where, getDocs, doc, updateDoc, serverTimestamp, orderBy, writeBatch, Timestamp } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { formatCurrency } from '../../utils/formatters'
+import { generateCommodityInstallmentSchedule } from '../../utils/installmentUtils'
+import { emailService } from '../../services/emailService'
+import { createSystemNotification } from '../../utils/notificationUtils'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import { useAuthStore } from '../../store/authStore'
+import { hasPermission, PERMISSIONS } from '../../utils/permissions'
 
 export default function AdminCommodityOrdersPage() {
+    const { user } = useAuthStore()
+    const canApproveOrders = hasPermission(user, PERMISSIONS.APPROVE_COMMODITY_ORDERS)
     const [orders, setOrders] = useState([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState('pending_approval') // 'all', 'pending_approval', 'approved', 'rejected', 'processing', 'delivered'
@@ -50,15 +57,35 @@ export default function AdminCommodityOrdersPage() {
             const order = orders.find(o => o.id === orderId)
             if (!order) return
 
+            // Update order status
             await updateDoc(doc(db, 'commodityOrders', orderId), {
                 status: newStatus,
-                approvedBy: newStatus === 'approved' ? 'Admin' : null,
+                approvedBy: newStatus === 'approved' ? user.name : null,
                 approvedAt: newStatus === 'approved' ? serverTimestamp() : null,
                 rejectionReason: newStatus === 'rejected' ? note : null,
                 updatedAt: serverTimestamp()
             })
 
-            // TODO: Send email notification to user
+            // Generate installment schedule if approving an installment order
+            if (newStatus === 'approved' && order.paymentType === 'installment') {
+                await generateInstallmentScheduleForOrder(orderId, order)
+            }
+
+            // Create system notification
+            if (newStatus === 'approved') {
+                await createSystemNotification({
+                    userId: order.userId,
+                    type: 'order_update',
+                    title: 'Order Approved!',
+                    message: `Your order for ${order.productName} has been approved`,
+                    actionUrl: '/member/orders',
+                    actionLabel: 'View Order'
+                })
+
+                // Send email
+                await emailService.sendOrderApprovalEmail(order.userEmail, order)
+            }
+
             alert(`Order ${newStatus} successfully!`)
             await fetchOrders()
         } catch (error) {
@@ -66,6 +93,31 @@ export default function AdminCommodityOrdersPage() {
             alert('Failed to update order status')
         } finally {
             setProcessingId(null)
+        }
+    }
+
+    const generateInstallmentScheduleForOrder = async (orderId, order) => {
+        try {
+            const schedule = generateCommodityInstallmentSchedule(order)
+
+            // Create installment schedule documents in Firestore
+            const batch = writeBatch(db)
+
+            schedule.forEach((payment) => {
+                const paymentRef = doc(collection(db, `commodityOrders/${orderId}/installmentSchedule`))
+                batch.set(paymentRef, {
+                    ...payment,
+                    dueDate: Timestamp.fromDate(payment.dueDate),
+                    paidDate: payment.paidDate ? Timestamp.fromDate(payment.paidDate) : null,
+                    processedAt: payment.processedAt ? Timestamp.fromDate(payment.processedAt) : null
+                })
+            })
+
+            await batch.commit()
+            console.log(`Generated ${schedule.length} installments for order ${orderId}`)
+        } catch (error) {
+            console.error('Error generating installment schedule:', error)
+            throw error
         }
     }
 
@@ -139,13 +191,30 @@ export default function AdminCommodityOrdersPage() {
                 </p>
             </div>
 
+            {/* Read-Only Warning for Limited Admins */}
+            {!canApproveOrders && (
+                <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <div className="flex items-center gap-3">
+                        <AlertCircle className="text-blue-600 dark:text-blue-400" size={20} />
+                        <div>
+                            <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                                Read-Only Access
+                            </p>
+                            <p className="text-xs text-blue-700 dark:text-blue-300">
+                                You can view commodity orders but cannot approve or reject them.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Filter Tabs */}
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
                 <button
                     onClick={() => setFilter('pending_approval')}
                     className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === 'pending_approval'
-                            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                 >
                     <Clock size={16} className="inline mr-1" />
@@ -154,8 +223,8 @@ export default function AdminCommodityOrdersPage() {
                 <button
                     onClick={() => setFilter('approved')}
                     className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === 'approved'
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                 >
                     <CheckCircle size={16} className="inline mr-1" />
@@ -164,8 +233,8 @@ export default function AdminCommodityOrdersPage() {
                 <button
                     onClick={() => setFilter('processing')}
                     className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === 'processing'
-                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                 >
                     Processing ({getStatusCount('processing')})
@@ -173,8 +242,8 @@ export default function AdminCommodityOrdersPage() {
                 <button
                     onClick={() => setFilter('delivered')}
                     className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === 'delivered'
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                 >
                     Delivered ({getStatusCount('delivered')})
@@ -182,8 +251,8 @@ export default function AdminCommodityOrdersPage() {
                 <button
                     onClick={() => setFilter('rejected')}
                     className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === 'rejected'
-                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                 >
                     <XCircle size={16} className="inline mr-1" />
@@ -192,8 +261,8 @@ export default function AdminCommodityOrdersPage() {
                 <button
                     onClick={() => setFilter('all')}
                     className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === 'all'
-                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                 >
                     All ({orders.length})
@@ -314,7 +383,7 @@ export default function AdminCommodityOrdersPage() {
                                 </div>
 
                                 {/* Actions */}
-                                {order.status === 'pending_approval' && (
+                                {canApproveOrders && order.status === 'pending_approval' && (
                                     <div className="flex lg:flex-col gap-2">
                                         <Button
                                             size="sm"
@@ -351,7 +420,7 @@ export default function AdminCommodityOrdersPage() {
                                     </div>
                                 )}
 
-                                {order.status === 'approved' && (
+                                {canApproveOrders && order.status === 'approved' && (
                                     <Button
                                         size="sm"
                                         onClick={() => handleStatusUpdate(order.id, 'processing')}
@@ -362,7 +431,7 @@ export default function AdminCommodityOrdersPage() {
                                     </Button>
                                 )}
 
-                                {order.status === 'processing' && (
+                                {canApproveOrders && order.status === 'processing' && (
                                     <Button
                                         size="sm"
                                         onClick={() => handleStatusUpdate(order.id, 'delivered')}

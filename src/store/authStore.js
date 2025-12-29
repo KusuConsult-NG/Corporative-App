@@ -109,11 +109,18 @@ export const useAuthStore = create(
                         memberId: memberId,
                         title: userData.title,
                         firstName: userData.firstName,
+                        middleName: userData.middleName || '',
                         lastName: userData.lastName,
-                        name: `${userData.title} ${userData.firstName} ${userData.lastName}`,
+                        name: `${userData.title} ${userData.firstName} ${userData.middleName ? userData.middleName + ' ' : ''}${userData.lastName}`,
                         email: userData.email,
                         staffId: userData.staffId,
                         department: userData.department,
+                        rank: userData.rank,
+                        position: userData.position,
+                        gender: userData.gender,
+                        dateOfBirth: userData.dateOfBirth,
+                        stateOfOrigin: userData.stateOfOrigin,
+                        address: userData.address,
                         role: 'member',
                         status: 'pending', // Changed from 'active'
 
@@ -133,6 +140,7 @@ export const useAuthStore = create(
                         passport: null,
                         passportUploadedAt: null,
                         bankDetails: [],
+                        nextOfKin: userData.nextOfKin,
 
                         // Profile completion
                         profileComplete: false,

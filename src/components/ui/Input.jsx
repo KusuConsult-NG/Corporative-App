@@ -15,7 +15,10 @@ const Input = forwardRef(({
     return (
         <div className="flex flex-col gap-2 w-full">
             {label && (
-                <label className="text-slate-900 dark:text-gray-200 text-sm font-semibold">
+                <label
+                    htmlFor={props.id || props.name}
+                    className="text-slate-900 dark:text-gray-200 text-sm font-semibold"
+                >
                     {label}
                 </label>
             )}
@@ -27,6 +30,7 @@ const Input = forwardRef(({
                 )}
                 <input
                     ref={ref}
+                    id={props.id || props.name}
                     type={type}
                     className={cn(
                         'flex w-full rounded-xl border bg-white dark:bg-gray-800 h-12 px-4 text-base text-slate-900 dark:text-white placeholder:text-[#93adc8] dark:placeholder:text-slate-500 transition-all',

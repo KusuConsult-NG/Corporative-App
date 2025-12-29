@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
     Users,
@@ -14,19 +14,79 @@ import {
 import { formatCurrency } from '../../utils/formatters'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+import { db } from '../../lib/firebase'
 
 export default function AdminDashboard() {
     const navigate = useNavigate()
+    const [stats, setStats] = useState({
+        totalMembers: 0,
+        activeMembers: 0,
+        totalSavings: 0,
+        activeLoans: 0,
+        pendingRequests: 0,
+        monthlyGrowth: 0
+    })
+    const [loading, setLoading] = useState(true)
 
-    // Mock Admin Stats
-    const stats = {
-        totalMembers: 1250,
-        activeMembers: 980,
-        totalSavings: 450000000,
-        activeLoans: 125000000,
-        pendingRequests: 15,
-        monthlyGrowth: 8.5
-    }
+    // Fetch real-time dashboard stats
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                setLoading(true)
+
+                // Get total members
+                const usersSnapshot = await getDocs(collection(db, 'users'))
+                const totalMembers = usersSnapshot.size
+
+                // Get active members (with verified email)
+                const activeMembers = usersSnapshot.docs.filter(
+                    doc => doc.data().emailVerified === true
+                ).length
+
+                // Get total savings (sum all wallet balances)
+                const walletsSnapshot = await getDocs(collection(db, 'wallets'))
+                const totalSavings = walletsSnapshot.docs.reduce(
+                    (sum, doc) => sum + (doc.data().balance || 0),
+                    0
+                )
+
+                // Get active loans (sum all active loan amounts)
+                const loansQuery = query(
+                    collection(db, 'loans'),
+                    where('status', '==', 'active')
+                )
+                const loansSnapshot = await getDocs(loansQuery)
+                const activeLoans = loansSnapshot.docs.reduce(
+                    (sum, doc) => sum + (doc.data().amount || 0),
+                    0
+                )
+
+                // Get pending loan requests
+                const pendingQuery = query(
+                    collection(db, 'loans'),
+                    where('status', '==', 'pending')
+                )
+                const pendingSnapshot = await getDocs(pendingQuery)
+                const pendingRequests = pendingSnapshot.size
+
+                setStats({
+                    totalMembers,
+                    activeMembers,
+                    totalSavings,
+                    activeLoans,
+                    pendingRequests,
+                    monthlyGrowth: 8.5 // This would need historical data to calculate
+                })
+            } catch (error) {
+                console.error('Error fetching dashboard stats:', error)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchStats()
+    }, [])
 
     // Mock Recent Activity
     const recentActivities = [

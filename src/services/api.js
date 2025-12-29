@@ -37,12 +37,15 @@ export const savingsAPI = {
         try {
             const q = query(
                 collection(db, 'savings_transactions'),
-                where('memberId', '==', memberId),
-                orderBy('date', 'desc'),
-                limit(limitCount)
+                where('memberId', '==', memberId)
             )
             const querySnapshot = await getDocs(q)
-            return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            const transactions = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            return transactions.sort((a, b) => {
+                const aTime = a.date?.seconds || 0
+                const bTime = b.date?.seconds || 0
+                return bTime - aTime
+            }).slice(0, limitCount)
         } catch (error) {
             console.error('Error fetching transactions:', error)
             throw error
@@ -130,18 +133,23 @@ export const loansAPI = {
 
     getAllLoans: async (status = null) => {
         try {
-            let q = query(collection(db, 'loans'), orderBy('createdAt', 'desc'))
+            let q = query(collection(db, 'loans'))
 
             if (status) {
                 q = query(
                     collection(db, 'loans'),
-                    where('status', '==', status),
-                    orderBy('createdAt', 'desc')
+                    where('status', '==', status)
                 )
             }
 
             const querySnapshot = await getDocs(q)
-            return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            const loans = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+
+            return loans.sort((a, b) => {
+                const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds * 1000 || 0
+                const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds * 1000 || 0
+                return bTime - aTime
+            })
         } catch (error) {
             console.error('Error fetching all loans:', error)
             throw error
@@ -228,11 +236,15 @@ export const guarantorAPI = {
         try {
             const q = query(
                 collection(db, 'guarantor_approvals'),
-                where('guarantorMemberId', '==', memberId),
-                orderBy('createdAt', 'desc')
+                where('guarantorMemberId', '==', memberId)
             )
             const querySnapshot = await getDocs(q)
-            return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            const approvals = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            return approvals.sort((a, b) => {
+                const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds * 1000 || 0
+                const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds * 1000 || 0
+                return bTime - aTime
+            })
         } catch (error) {
             console.error('Error fetching member guarantor requests:', error)
             throw error
@@ -349,11 +361,15 @@ export const commoditiesAPI = {
         try {
             const q = query(
                 collection(db, 'commodity_orders'),
-                where('memberId', '==', memberId),
-                orderBy('createdAt', 'desc')
+                where('memberId', '==', memberId)
             )
             const querySnapshot = await getDocs(q)
-            return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            const orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            return orders.sort((a, b) => {
+                const aTime = a.createdAt?.seconds || 0
+                const bTime = b.createdAt?.seconds || 0
+                return bTime - aTime
+            })
         } catch (error) {
             console.error('Error fetching orders:', error)
             throw error
@@ -362,12 +378,14 @@ export const commoditiesAPI = {
 
     getAllOrders: async () => {
         try {
-            const q = query(
-                collection(db, 'commodity_orders'),
-                orderBy('createdAt', 'desc')
-            )
+            const q = query(collection(db, 'commodity_orders'))
             const querySnapshot = await getDocs(q)
-            return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            const orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            return orders.sort((a, b) => {
+                const aTime = a.createdAt?.seconds || 0
+                const bTime = b.createdAt?.seconds || 0
+                return bTime - aTime
+            })
         } catch (error) {
             console.error('Error fetching all orders:', error)
             throw error
@@ -379,12 +397,14 @@ export const commoditiesAPI = {
 export const membersAPI = {
     getAll: async () => {
         try {
-            const q = query(
-                collection(db, 'users'),
-                orderBy('joinedAt', 'desc')
-            )
+            const q = query(collection(db, 'users'))
             const querySnapshot = await getDocs(q)
-            return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            const users = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+            return users.sort((a, b) => {
+                const aTime = a.joinedAt?.seconds || 0
+                const bTime = b.joinedAt?.seconds || 0
+                return bTime - aTime
+            })
         } catch (error) {
             console.error('Error fetching members:', error)
             throw error
@@ -505,8 +525,8 @@ export const walletAPI = {
 
             // Sort by createdAt in JavaScript (newest first)
             return transactions.sort((a, b) => {
-                const aTime = a.createdAt?.seconds || 0
-                const bTime = b.createdAt?.seconds || 0
+                const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds * 1000 || 0
+                const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds * 1000 || 0
                 return bTime - aTime
             }).slice(0, limitCount)
         } catch (error) {
