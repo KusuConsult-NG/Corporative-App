@@ -297,6 +297,51 @@ export const emailService = {
         }
     },
 
+    // Generic approval status update email
+    sendApprovalStatusUpdate: async (userEmail, userName, type, status, note) => {
+        try {
+            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
+                return { success: false, message: 'Email service not configured' }
+            }
+
+            const isApproved = status === 'approved'
+            const typeDisplay = type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+
+            await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${RESEND_API_KEY}`
+                },
+                body: JSON.stringify({
+                    from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
+                    to: userEmail,
+                    subject: `${typeDisplay} Request ${isApproved ? 'Approved' : 'Update'}`,
+                    html: `
+                        <!DOCTYPE html>
+                        <html>
+                        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                            <div style="background: #f9fafb; padding: 30px; border-radius: 10px; border-left: 4px solid ${isApproved ? '#10b981' : '#ef4444'};">
+                                <h2 style="color: ${isApproved ? '#10b981' : '#ef4444'};">${typeDisplay} Request ${isApproved ? 'Approved' : 'Rejected'}</h2>
+                                <p>Dear ${userName},</p>
+                                <p>Your request for <strong>${typeDisplay}</strong> has been ${status} by the administrators.</p>
+                                ${note ? `<div style="background: white; padding: 15px; border-radius: 8px; margin: 20px 0;"><p style="margin: 0;"><strong>Note:</strong><br>${note}</p></div>` : ''}
+                                <p>If you have any questions, please contact our support team.</p>
+                                <p style="color: #6b7280; font-size: 14px;">Thank you for your patience.</p>
+                            </div>
+                        </body>
+                        </html>
+                    `
+                })
+            })
+
+            return { success: true }
+        } catch (error) {
+            console.error('Error sending approval status email:', error)
+            return { success: false, error: error.message }
+        }
+    },
+
     // NEW: Send broadcast email
     sendBroadcastEmail: async (userEmail, broadcast) => {
         try {

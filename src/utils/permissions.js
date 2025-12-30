@@ -73,10 +73,24 @@ export const ROLE_PERMISSIONS = {
         PERMISSIONS.VIEW_COMPLAINTS, // To see complaints
         PERMISSIONS.RESPOND_COMPLAINTS, // To respond to complaints
         PERMISSIONS.VIEW_APPROVALS, // To see pending approvals
+        PERMISSIONS.PROCESS_APPROVALS, // Fixed: Needed this to approve things!
+    ],
+
+    // Backward compatibility for old role name
+    'limitedAdmin': [
+        PERMISSIONS.VIEW_MEMBERS,
+        PERMISSIONS.VIEW_LOANS,
+        PERMISSIONS.VIEW_SAVINGS,
+        PERMISSIONS.VIEW_COMMODITY_ORDERS,
+        PERMISSIONS.VIEW_REPORTS,
+        PERMISSIONS.VIEW_COMPLAINTS,
+        PERMISSIONS.RESPOND_COMPLAINTS,
+        PERMISSIONS.VIEW_APPROVALS,
+        PERMISSIONS.PROCESS_APPROVALS,
     ],
 
     [ROLES.ADMIN]: [
-        // All limited admin permissions
+        // All permissions except role management
         ...Object.values(PERMISSIONS).filter(p => p !== PERMISSIONS.MANAGE_ROLES),
     ],
 
@@ -141,7 +155,7 @@ export function canAccessAdmin(user) {
         return false
     }
 
-    return [ROLES.CUSTOMER_CARE, ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(user.role)
+    return [ROLES.CUSTOMER_CARE, ROLES.ADMIN, ROLES.SUPER_ADMIN, 'limitedAdmin'].includes(user.role)
 }
 
 /**
@@ -180,6 +194,7 @@ export function getRoleDisplayName(role) {
     const roleNames = {
         [ROLES.MEMBER]: 'Member',
         [ROLES.CUSTOMER_CARE]: 'Customer Care',
+        'limitedAdmin': 'Customer Care', // Backward compatibility
         [ROLES.ADMIN]: 'Administrator',
         [ROLES.SUPER_ADMIN]: 'Super Administrator'
     }
@@ -196,6 +211,7 @@ export function getRoleBadgeColor(role) {
     const colors = {
         [ROLES.MEMBER]: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
         [ROLES.CUSTOMER_CARE]: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300',
+        'limitedAdmin': 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300', // Backward compatibility
         [ROLES.ADMIN]: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
         [ROLES.SUPER_ADMIN]: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
     }

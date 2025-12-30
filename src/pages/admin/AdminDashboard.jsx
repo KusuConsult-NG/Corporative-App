@@ -44,7 +44,7 @@ export default function AdminDashboard() {
 
     // Redirect Customer Care users to their specialized dashboard
     useEffect(() => {
-        if (user?.role === ROLES.CUSTOMER_CARE) {
+        if (user?.role === ROLES.CUSTOMER_CARE || user?.role === 'limitedAdmin') {
             navigate('/admin/customer-care')
         }
     }, [user, navigate])

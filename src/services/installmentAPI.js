@@ -143,7 +143,7 @@ async function getTargetUsers(targetAudience) {
         } else if (targetAudience === 'admins') {
             q = query(
                 collection(db, 'users'),
-                where('role', 'in', ['admin', 'limitedAdmin', 'superadmin'])
+                where('role', 'in', ['admin', 'customerCare', 'superadmin'])
             )
         } else {
             q = query(collection(db, 'users'))

@@ -176,7 +176,7 @@ export default function RoleManagementPage() {
                             >
                                 <option value="all">All Roles</option>
                                 <option value={ROLES.MEMBER}>Members</option>
-                                <option value={ROLES.LIMITED_ADMIN}>Limited Admins</option>
+                                <option value={ROLES.CUSTOMER_CARE}>Customer Care</option>
                                 <option value={ROLES.ADMIN}>Administrators</option>
                                 <option value={ROLES.SUPER_ADMIN}>Super Admins</option>
                             </select>
@@ -265,7 +265,7 @@ export default function RoleManagementPage() {
                                                     className="px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                                                 >
                                                     <option value={ROLES.MEMBER}>{getRoleDisplayName(ROLES.MEMBER)}</option>
-                                                    <option value={ROLES.LIMITED_ADMIN}>{getRoleDisplayName(ROLES.LIMITED_ADMIN)}</option>
+                                                    <option value={ROLES.CUSTOMER_CARE}>{getRoleDisplayName(ROLES.CUSTOMER_CARE)}</option>
                                                     <option value={ROLES.ADMIN}>{getRoleDisplayName(ROLES.ADMIN)}</option>
                                                     <option value={ROLES.SUPER_ADMIN}>{getRoleDisplayName(ROLES.SUPER_ADMIN)}</option>
                                                 </select>
