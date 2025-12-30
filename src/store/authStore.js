@@ -369,31 +369,45 @@ export const useAuthStore = create(
             },
 
             // Profile update functions
-            updateProfileField: async (userId, field, value) => {
+            updateProfileField: async (userId, fieldOrObject, value) => {
                 try {
-                    const q = query(
-                        collection(db, 'users'),
-                        where('userId', '==', userId)
-                    )
-                    const querySnapshot = await getDocs(q)
+                    const { user } = get()
+                    if (!user) return { success: false, error: 'User session not found' }
 
-                    if (querySnapshot.empty) {
-                        return { success: false, error: 'User not found' }
+                    let updateData = {}
+                    if (typeof fieldOrObject === 'string') {
+                        updateData[fieldOrObject] = value
+                    } else {
+                        updateData = fieldOrObject
                     }
 
-                    const userDoc = querySnapshot.docs[0]
-                    await updateDoc(doc(db, 'users', userDoc.id), {
-                        [field]: value
+                    // Use the document ID (user.id) directly if we have it, otherwise query
+                    let userDocRef
+                    if (user.id) {
+                        userDocRef = doc(db, 'users', user.id)
+                    } else {
+                        const q = query(
+                            collection(db, 'users'),
+                            where('userId', '==', userId)
+                        )
+                        const querySnapshot = await getDocs(q)
+                        if (querySnapshot.empty) return { success: false, error: 'User profile not found' }
+                        userDocRef = doc(db, 'users', querySnapshot.docs[0].id)
+                    }
+
+                    await updateDoc(userDocRef, {
+                        ...updateData,
+                        updatedAt: serverTimestamp()
                     })
 
                     // Update local state
                     set((state) => ({
-                        user: state.user ? { ...state.user, [field]: value } : null
+                        user: state.user ? { ...state.user, ...updateData } : null
                     }))
 
                     return { success: true }
                 } catch (error) {
-                    console.error('Error updating profile field:', error)
+                    console.error('Error updating profile:', error)
                     return { success: false, error: error.message }
                 }
             },

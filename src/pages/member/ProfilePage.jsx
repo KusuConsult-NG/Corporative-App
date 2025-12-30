@@ -21,6 +21,13 @@ export default function ProfilePage() {
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
 
+    // Sync phone state when user profile is updated/hydrated
+    useEffect(() => {
+        if (!loading && user?.phone) {
+            setPhone(user.phone)
+        }
+    }, [user?.phone, loading])
+
     // Calculate profile completion
     const completionPercentage = calculateProfileCompletion(user)
     const missingFields = getMissingProfileFields(user)
@@ -77,15 +84,18 @@ export default function ProfilePage() {
             // Upload new passport
             const downloadURL = await uploadPassport(file, user.userId)
 
-            // Update user profile
-            const result1 = await updateProfileField(user.userId, 'passport', downloadURL)
-            const result2 = await updateProfileField(user.userId, 'passportUploadedAt', new Date())
+            // Update user profile with all fields at once
+            const result = await updateProfileField(user.userId, {
+                passport: downloadURL,
+                passportUploadedAt: new Date(),
+                profileComplete: true // Auto-set if this was the last field
+            })
 
-            if (result1.success && result2.success) {
+            if (result.success) {
                 setSuccess('Passport photo uploaded successfully!')
                 setTimeout(() => setSuccess(''), 3000)
             } else {
-                setError('Photo uploaded but failed to update profile. Please try again.')
+                setError(result.error || 'Photo uploaded but failed to update profile. Please try again.')
             }
         } catch (err) {
             console.error('Upload error:', err)
@@ -321,8 +331,8 @@ export default function ProfilePage() {
                             <label className="text-xs font-semibold text-slate-500 uppercase mb-2 block">
                                 Phone Number
                             </label>
-                            <div className="flex gap-2">
-                                <div className="flex-1">
+                            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                                <div className="w-full max-w-md">
                                     <Input
                                         type="tel"
                                         icon={Phone}
@@ -332,13 +342,13 @@ export default function ProfilePage() {
                                         maxLength={11}
                                     />
                                 </div>
-                                {phone !== user?.phone && (
-                                    <Button onClick={handlePhoneUpdate} loading={loading}>
-                                        Update
+                                {(phone !== user?.phone) && (
+                                    <Button onClick={handlePhoneUpdate} loading={loading} className="w-full sm:w-auto">
+                                        Save Changes
                                     </Button>
                                 )}
                             </div>
-                            <p className="text-xs text-slate-500 mt-1">
+                            <p className="text-xs text-slate-500 mt-2 italic">
                                 11 digits starting with 0 (e.g., 08012345678)
                             </p>
                         </div>
