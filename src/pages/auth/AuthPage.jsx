@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Mail, Lock, User, Building2, Hash, ArrowRight, Info, Shield } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { canAccessAdmin } from '../../utils/permissions'
@@ -11,17 +11,7 @@ export default function AuthPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [loading, setLoading] = useState(false)
     const navigate = useNavigate()
-    const location = useLocation()
     const { login } = useAuthStore()
-    const [verificationMessage, setVerificationMessage] = useState('')
-
-    // Check for verification success message from VerifyEmailPage
-    useEffect(() => {
-        if (location.state?.verified && location.state?.message) {
-            setVerificationMessage(location.state.message)
-            setMode('login')
-        }
-    }, [location])
 
     // Login form state
     const [loginData, setLoginData] = useState({
@@ -89,21 +79,6 @@ export default function AuthPage() {
         if (result.success) {
             // Get updated user from store
             const { user } = useAuthStore.getState()
-
-            // Check if email is verified
-            if (!user.emailVerified) {
-                navigate('/email-verification-pending', {
-                    state: { email: trimmedEmail }
-                })
-                return
-            }
-
-            // Check if registration fee is paid (for members)
-            if (user.role === 'member' && !user.registrationFeePaid) {
-                navigate('/registration-fee')
-                return
-            }
-
             navigate(canAccessAdmin(user) ? '/admin/dashboard' : '/member/dashboard')
         } else {
             setErrors({ password: result.error || 'Invalid credentials' })
@@ -241,16 +216,6 @@ export default function AuthPage() {
                                 : 'Register with your official Unijos email to join the cooperative.'}
                         </p>
                     </div>
-
-                    {/* Verification Message */}
-                    {verificationMessage && (
-                        <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl flex items-start gap-3">
-                            <Info className="text-green-600 dark:text-green-400 shrink-0 mt-0.5" size={18} />
-                            <p className="text-sm text-green-800 dark:text-green-200 font-medium leading-relaxed">
-                                {verificationMessage}
-                            </p>
-                        </div>
-                    )}
 
                     {/* Login Form */}
                     {mode === 'login' && (
