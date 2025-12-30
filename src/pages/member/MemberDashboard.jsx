@@ -410,7 +410,8 @@ export default function MemberDashboard() {
                             </div>
 
                             <Button variant="outline" className="mt-4" onClick={() => navigate('/member/commodities')}>
-                                View All Commodities
+                                <span className="hidden sm:inline">View All Commodities</span>
+                                <span className="inline sm:hidden">View All</span>
                             </Button>
                         </Card>
                     </div>

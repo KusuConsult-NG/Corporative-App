@@ -159,7 +159,8 @@ export default function CustomerCareDashboard() {
                 <div className="flex gap-3">
                     <Button onClick={() => navigate('/admin/complaints')}>
                         <MessageSquare size={20} />
-                        View All Complaints
+                        <span className="hidden sm:inline">View All Complaints</span>
+                        <span className="inline sm:hidden">View All</span>
                     </Button>
                 </div>
             </div>
