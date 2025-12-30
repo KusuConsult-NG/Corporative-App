@@ -9,7 +9,6 @@
 export const ROLES = {
     MEMBER: 'member',
     CUSTOMER_CARE: 'customerCare',
-    LIMITED_ADMIN: 'limitedAdmin',
     ADMIN: 'admin',
     SUPER_ADMIN: 'superadmin'
 }
@@ -64,24 +63,16 @@ export const ROLE_PERMISSIONS = {
     ],
 
     [ROLES.CUSTOMER_CARE]: [
-        // Customer service permissions - focused on member support
+        // Customer Care / Support Staff
+        // Can view data and respond to member inquiries
         PERMISSIONS.VIEW_MEMBERS, // To look up member details
-        PERMISSIONS.VIEW_COMPLAINTS,
-        PERMISSIONS.RESPOND_COMPLAINTS,
-        PERMISSIONS.VIEW_COMMODITY_ORDERS, // To answer order inquiries
         PERMISSIONS.VIEW_LOANS, // To answer loan questions
         PERMISSIONS.VIEW_SAVINGS, // To answer savings questions
-    ],
-
-    [ROLES.LIMITED_ADMIN]: [
-        // View-only permissions
-        PERMISSIONS.VIEW_MEMBERS,
-        PERMISSIONS.VIEW_LOANS,
-        PERMISSIONS.VIEW_SAVINGS,
-        PERMISSIONS.VIEW_COMMODITY_ORDERS,
-        PERMISSIONS.VIEW_REPORTS,
-        PERMISSIONS.VIEW_COMPLAINTS,
-        PERMISSIONS.VIEW_APPROVALS,
+        PERMISSIONS.VIEW_COMMODITY_ORDERS, // To answer order inquiries
+        PERMISSIONS.VIEW_REPORTS, // To view reports
+        PERMISSIONS.VIEW_COMPLAINTS, // To see complaints
+        PERMISSIONS.RESPOND_COMPLAINTS, // To respond to complaints
+        PERMISSIONS.VIEW_APPROVALS, // To see pending approvals
     ],
 
     [ROLES.ADMIN]: [
@@ -150,7 +141,7 @@ export function canAccessAdmin(user) {
         return false
     }
 
-    return [ROLES.LIMITED_ADMIN, ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(user.role)
+    return [ROLES.CUSTOMER_CARE, ROLES.ADMIN, ROLES.SUPER_ADMIN].includes(user.role)
 }
 
 /**
@@ -189,7 +180,6 @@ export function getRoleDisplayName(role) {
     const roleNames = {
         [ROLES.MEMBER]: 'Member',
         [ROLES.CUSTOMER_CARE]: 'Customer Care',
-        [ROLES.LIMITED_ADMIN]: 'Limited Admin',
         [ROLES.ADMIN]: 'Administrator',
         [ROLES.SUPER_ADMIN]: 'Super Administrator'
     }
@@ -206,7 +196,6 @@ export function getRoleBadgeColor(role) {
     const colors = {
         [ROLES.MEMBER]: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
         [ROLES.CUSTOMER_CARE]: 'bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300',
-        [ROLES.LIMITED_ADMIN]: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
         [ROLES.ADMIN]: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
         [ROLES.SUPER_ADMIN]: 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
     }
