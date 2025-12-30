@@ -43,6 +43,8 @@ export default function AuthPage() {
         password: '',
     })
 
+    const [agreedToTerms, setAgreedToTerms] = useState(false)
+
     const [errors, setErrors] = useState({})
 
     const validateEmail = (email) => {
@@ -492,9 +494,48 @@ export default function AuthPage() {
                                 required
                             />
 
-                            <Button type="submit" loading={loading} className="mt-2">
-                                <span>Create Account</span>
-                                <ArrowRight size={18} />
+                            {/* Terms & Conditions Agreement  */}
+                            <div className="mt-4">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={agreedToTerms}
+                                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                        className="mt-1 w-4 h-4 text-primary bg-white dark:bg-gray-800 border-slate-300 dark:border-gray-600 rounded focus:ring-primary focus:ring-2"
+                                        required
+                                    />
+                                    <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                                        I agree to the{' '}
+                                        <a
+                                            href="https://www.google.com/search?q=cooperative+society+bylaws+nigeria"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline font-semibold"
+                                        >
+                                            Terms and Conditions
+                                        </a>
+                                        {' '}and{' '}
+                                        <a
+                                            href="https://www.google.com/search?q=cooperative+society+bylaws+nigeria"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary hover:underline font-semibold"
+                                        >
+                                            By-laws
+                                        </a>
+                                        {' '}of AWSLMCSL Cooperative Society
+                                    </span>
+                                </label>
+                            </div>
+
+                            <Button
+                                type="submit"
+                                loading={loading}
+                                className="mt-4"
+                                fullWidth
+                                disabled={!agreedToTerms || loading}
+                            >
+                                Create Account
                             </Button>
                         </form>
                     )}
