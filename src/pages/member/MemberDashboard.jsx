@@ -231,15 +231,15 @@ export default function MemberDashboard() {
                 <div className="flex flex-wrap gap-4 items-center">
                     <Button onClick={() => navigate('/member/savings')}>
                         <Plus size={20} />
-                        <span className="whitespace-nowrap">Add Funds</span>
+                        <span className="hidden sm:inline whitespace-nowrap">Add Funds</span>
                     </Button>
                     <Button variant="secondary" onClick={() => navigate('/member/loans')}>
                         <CreditCard size={20} className="text-slate-400 dark:text-slate-500" />
-                        <span className="whitespace-nowrap">Repay Loan</span>
+                        <span className="hidden sm:inline whitespace-nowrap">Repay Loan</span>
                     </Button>
                     <Button variant="secondary" onClick={() => navigate('/member/loans/apply')}>
                         <FileText size={20} className="text-slate-400 dark:text-slate-500" />
-                        <span className="whitespace-nowrap">Apply for Loan</span>
+                        <span className="hidden sm:inline whitespace-nowrap">Apply for Loan</span>
                     </Button>
                 </div>
             </section>
