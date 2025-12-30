@@ -1,6 +1,7 @@
 import { collection, addDoc, getDocs, doc, updateDoc, serverTimestamp, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { emailService } from './emailService'
+import { createBroadcastNotifications } from '../utils/notificationUtils'
 
 /**
  * Installment Orders API
@@ -67,27 +68,28 @@ export const broadcastAPI = {
             })
 
             // 2. Get target users
-            const targetUsers = await getTargetUsers(messageData.targetAudience)
+            const allUsers = await getTargetUsers(messageData.targetAudience)
 
-            // 3. Create individual notifications for each user (optional, don't fail entire broadcast)
+            // Filter users to ensure they have required fields
+            const targetUsers = allUsers.filter(u => u.userId && u.email)
+
+            console.log(`Broadcast targeting "${messageData.targetAudience}": Found ${targetUsers.length} valid recipients out of ${allUsers.length} total users in category.`)
+
+            if (targetUsers.length === 0) {
+                return {
+                    id: broadcastDoc.id,
+                    recipients: 0,
+                    ...messageData,
+                    warning: 'No valid recipients found with both email and userId'
+                }
+            }
+
+            // 3. Create individual notifications for each user
             try {
-                const notificationPromises = targetUsers.map(user =>
-                    addDoc(collection(db, 'notifications'), {
-                        userId: user.id,
-                        type: 'broadcast',
-                        title: messageData.subject,
-                        message: messageData.message,
-                        read: false,
-                        broadcastId: broadcastDoc.id,
-                        createdAt: serverTimestamp(),
-                        actionUrl: null,
-                        actionLabel: null,
-                        priority: 'normal'
-                    })
-                )
-                await Promise.allSettled(notificationPromises)
+                const userIds = targetUsers.map(u => u.userId)
+                await createBroadcastNotifications(broadcastDoc.id, messageData, userIds)
             } catch (notifErr) {
-                console.warn('Individual notifications failed:', notifErr)
+                console.warn('Individual notifications background process had issues:', notifErr)
             }
 
             // 4. Update broadcast with stats
@@ -100,11 +102,16 @@ export const broadcastAPI = {
             if (messageData.sendEmail !== false) {
                 try {
                     const emailPromises = targetUsers.map(user =>
-                        emailService.sendBroadcastEmail(user.email, messageData)
+                        emailService.sendBroadcastEmail(user.email, {
+                            ...messageData,
+                            senderName: messageData.senderName || 'Cooperative System'
+                        })
                     )
-                    await Promise.allSettled(emailPromises)
+                    const results = await Promise.allSettled(emailPromises)
+                    const successCount = results.filter(r => r.status === 'fulfilled').length
+                    console.log(`Broadcast emails sent: ${successCount}/${targetUsers.length}`)
                 } catch (emailErr) {
-                    console.warn('Broadcast emails failed:', emailErr)
+                    console.warn('Broadcast emails process had issues:', emailErr)
                 }
             }
 
@@ -114,7 +121,7 @@ export const broadcastAPI = {
                 ...messageData
             }
         } catch (error) {
-            console.error('Error sending broadcast:', error)
+            console.error('Critical error in broadcastAPI.send:', error)
             throw error
         }
     },
@@ -145,12 +152,12 @@ async function getTargetUsers(targetAudience) {
         } else if (targetAudience === 'members') {
             q = query(
                 collection(db, 'users'),
-                where('role', '==', 'member')
+                where('role', 'in', ['member', 'Member', 'MEMBER'])
             )
         } else if (targetAudience === 'admins') {
             q = query(
                 collection(db, 'users'),
-                where('role', 'in', ['admin', 'customerCare', 'superadmin'])
+                where('role', 'in', ['admin', 'customerCare', 'superadmin', 'limitedAdmin', 'Admin', 'Super Admin', 'Administrator', 'CUSTOMER_CARE'])
             )
         } else {
             q = query(collection(db, 'users'))

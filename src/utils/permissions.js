@@ -74,6 +74,7 @@ export const ROLE_PERMISSIONS = {
         PERMISSIONS.RESPOND_COMPLAINTS, // To respond to complaints
         PERMISSIONS.VIEW_APPROVALS, // To see pending approvals
         PERMISSIONS.PROCESS_APPROVALS, // Fixed: Needed this to approve things!
+        PERMISSIONS.SEND_BROADCAST,
     ],
 
     // Backward compatibility for old role name
@@ -87,6 +88,7 @@ export const ROLE_PERMISSIONS = {
         PERMISSIONS.RESPOND_COMPLAINTS,
         PERMISSIONS.VIEW_APPROVALS,
         PERMISSIONS.PROCESS_APPROVALS,
+        PERMISSIONS.SEND_BROADCAST,
     ],
 
     [ROLES.ADMIN]: [
