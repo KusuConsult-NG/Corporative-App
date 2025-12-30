@@ -129,7 +129,7 @@ export default function MemberDashboard() {
                         </div>
                     </div>
                     <Button
-                        onClick={() => navigate('/member/registration-fee')}
+                        onClick={() => navigate('/registration-fee')}
                         className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-600/20 whitespace-nowrap px-8 py-3 w-full sm:w-auto"
                     >
                         Pay Now

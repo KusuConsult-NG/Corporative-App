@@ -76,7 +76,7 @@ export const requirePayment = async (user, navigate, actionName = 'this action')
 
     if (!hasPaid) {
         // Redirect to payment page
-        navigate('/member/registration-fee', {
+        navigate('/registration-fee', {
             state: {
                 message: `Please pay the registration fee to ${actionName}`,
                 returnUrl: window.location.pathname
