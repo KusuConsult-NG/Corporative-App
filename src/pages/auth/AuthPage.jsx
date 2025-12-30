@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Mail, Lock, User, Building2, Hash, Info, Shield } from 'lucide-react'
+import { Mail, Lock, User, Building2, Hash, ArrowRight, Info, Shield } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { canAccessAdmin } from '../../utils/permissions'
 import Input from '../../components/ui/Input'
@@ -251,8 +251,9 @@ export default function AuthPage() {
                                 />
                             </div>
 
-                            <Button type="submit" loading={loading} className="mt-4" fullWidth>
-                                Log In to Dashboard
+                            <Button type="submit" loading={loading} className="mt-4">
+                                <span>Log In to Dashboard</span>
+                                <ArrowRight size={18} />
                             </Button>
                         </form>
                     )}
@@ -491,8 +492,9 @@ export default function AuthPage() {
                                 required
                             />
 
-                            <Button type="submit" loading={loading} className="mt-2" fullWidth>
-                                Create Account
+                            <Button type="submit" loading={loading} className="mt-2">
+                                <span>Create Account</span>
+                                <ArrowRight size={18} />
                             </Button>
                         </form>
                     )}
