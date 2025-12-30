@@ -23,7 +23,7 @@ import Card from '../../components/ui/Card'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useAuthStore } from '../../store/authStore'
-import { hasPermission, PERMISSIONS, isSuperAdmin, isFullAdmin, getRoleDisplayName, getRoleBadgeColor } from '../../utils/permissions'
+import { hasPermission, PERMISSIONS, isSuperAdmin, isFullAdmin, getRoleDisplayName, getRoleBadgeColor, ROLES } from '../../utils/permissions'
 
 export default function AdminDashboard() {
     const navigate = useNavigate()
@@ -41,6 +41,13 @@ export default function AdminDashboard() {
     })
     const [loading, setLoading] = useState(true)
     const [recentActivities, setRecentActivities] = useState([])
+
+    // Redirect Customer Care users to their specialized dashboard
+    useEffect(() => {
+        if (user?.role === ROLES.CUSTOMER_CARE) {
+            navigate('/admin/customer-care')
+        }
+    }, [user, navigate])
 
     // Check what user can see
     const canViewMembers = hasPermission(user, PERMISSIONS.VIEW_MEMBERS)

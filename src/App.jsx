@@ -44,6 +44,7 @@ import SavingsReductionPage from './pages/member/SavingsReductionPage'
 import AdminSavingsReductionPage from './pages/admin/AdminSavingsReductionPage'
 import ProfileChangeRequestsPage from './pages/admin/ProfileChangeRequestsPage'
 import RoleManagementPage from './pages/admin/RoleManagementPage'
+import CustomerCareDashboard from './pages/admin/CustomerCareDashboard'
 
 // Public Pages
 import GuarantorApprovalPage from './pages/GuarantorApprovalPage'
@@ -100,6 +101,7 @@ function App() {
                     {/* Admin Routes */}
                     <Route path="/admin" element={isAuthenticated && canAccessAdmin(user) ? <AdminLayout /> : <Navigate to="/auth" />}>
                         <Route path="dashboard" element={<AdminDashboard />} />
+                        <Route path="customer-care" element={<CustomerCareDashboard />} />
                         <Route path="approvals" element={<AdminApprovalsPage />} />
                         <Route path="commodity-orders" element={<AdminCommodityOrdersPage />} />
                         <Route path="commodity-deductions" element={<AdminCommodityDeductionsPage />} />

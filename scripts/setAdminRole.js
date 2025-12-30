@@ -35,18 +35,20 @@ async function promoteUserToAdmin() {
     console.log('\n🔧 Admin Role Assignment Tool\n');
     console.log('Available roles:');
     console.log('  1. member       - Regular member (no admin access)');
-    console.log('  2. limitedAdmin - View-only admin access');
-    console.log('  3. admin        - Full admin access');
-    console.log('  4. superadmin   - Super admin (can manage roles)\n');
+    console.log('  2. customerCare - Customer service/support staff');
+    console.log('  3. limitedAdmin - View-only admin access');
+    console.log('  4. admin        - Full admin access');
+    console.log('  5. superadmin   - Super admin (can manage roles)\n');
 
     const email = await question('Enter user email: ');
-    const roleChoice = await question('Enter role number (1-4): ');
+    const roleChoice = await question('Enter role number (1-5): ');
 
     const roleMap = {
         '1': 'member',
-        '2': 'limitedAdmin',
-        '3': 'admin',
-        '4': 'superadmin'
+        '2': 'customerCare',
+        '3': 'limitedAdmin',
+        '4': 'admin',
+        '5': 'superadmin'
     };
 
     const role = roleMap[roleChoice];
