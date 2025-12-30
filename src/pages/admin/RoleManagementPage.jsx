@@ -69,21 +69,27 @@ export default function RoleManagementPage() {
                 roleUpdatedBy: currentUser.userId
             })
 
-            // Log role change in history
-            await addDoc(collection(db, 'roleHistory'), {
-                userId: selectedUser.userId,
-                userName: selectedUser.name,
-                previousRole: selectedUser.role,
-                newRole: newRole,
-                changedBy: currentUser.userId,
-                changedByName: currentUser.name,
-                changedAt: serverTimestamp()
-            })
+            // Log role change in history (optional, don't fail if this fails)
+            try {
+                await addDoc(collection(db, 'roleHistory'), {
+                    userId: selectedUser.userId,
+                    userName: selectedUser.name,
+                    previousRole: selectedUser.role,
+                    newRole: newRole,
+                    changedBy: currentUser.userId,
+                    changedByName: currentUser.name,
+                    changedAt: serverTimestamp()
+                })
+            } catch (logError) {
+                console.warn('Failed to log role change:', logError)
+            }
 
             // Update local state
             setUsers(users.map(u =>
                 u.id === selectedUser.id ? { ...u, role: newRole } : u
             ))
+
+            alert('Role updated successfully!')
 
             // Close dialog
             setShowConfirmDialog(false)

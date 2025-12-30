@@ -96,26 +96,30 @@ export default function LoanRequestsPage() {
                 })
             }
 
-            // Send notifications and emails for approve/decline
-            if (actionType === 'approve') {
-                await createSystemNotification({
-                    userId: selectedLoan.userId,
-                    type: 'loan_status',
-                    title: 'Loan Approved!',
-                    message: `Your loan of ${formatCurrency(selectedLoan.amount)} has been approved`,
-                    actionUrl: '/member/loans',
-                    actionLabel: 'View Loan'
-                })
-                await emailService.sendLoanApprovalEmail(selectedLoan.email || selectedLoan.userEmail, selectedLoan)
-            } else if (actionType === 'decline') {
-                await createSystemNotification({
-                    userId: selectedLoan.userId,
-                    type: 'loan_status',
-                    title: 'Loan Application Update',
-                    message: 'Your loan application requires review. Please check details.',
-                    actionUrl: '/member/loans'
-                })
-                await emailService.sendLoanRejectionEmail(selectedLoan.email || selectedLoan.userEmail, selectedLoan, actionReason)
+            // Send notifications and emails for approve/decline (optional, don't fail if this fails)
+            try {
+                if (actionType === 'approve') {
+                    await createSystemNotification({
+                        userId: selectedLoan.userId,
+                        type: 'loan_status',
+                        title: 'Loan Approved!',
+                        message: `Your loan of ${formatCurrency(selectedLoan.amount)} has been approved`,
+                        actionUrl: '/member/loans',
+                        actionLabel: 'View Loan'
+                    })
+                    await emailService.sendLoanApprovalEmail(selectedLoan.email || selectedLoan.userEmail, selectedLoan)
+                } else if (actionType === 'decline') {
+                    await createSystemNotification({
+                        userId: selectedLoan.userId,
+                        type: 'loan_status',
+                        title: 'Loan Application Update',
+                        message: 'Your loan application requires review. Please check details.',
+                        actionUrl: '/member/loans'
+                    })
+                    await emailService.sendLoanRejectionEmail(selectedLoan.email || selectedLoan.userEmail, selectedLoan, actionReason)
+                }
+            } catch (notifyError) {
+                console.warn('Notifications or emails failed:', notifyError)
             }
 
             // Refresh loans

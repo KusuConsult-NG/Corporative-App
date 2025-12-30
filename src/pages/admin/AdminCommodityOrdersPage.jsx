@@ -71,19 +71,23 @@ export default function AdminCommodityOrdersPage() {
                 await generateInstallmentScheduleForOrder(orderId, order)
             }
 
-            // Create system notification
-            if (newStatus === 'approved') {
-                await createSystemNotification({
-                    userId: order.userId,
-                    type: 'order_update',
-                    title: 'Order Approved!',
-                    message: `Your order for ${order.productName} has been approved`,
-                    actionUrl: '/member/orders',
-                    actionLabel: 'View Order'
-                })
+            // Create system notification and send email (optional, don't fail if this fails)
+            try {
+                if (newStatus === 'approved') {
+                    await createSystemNotification({
+                        userId: order.userId,
+                        type: 'order_update',
+                        title: 'Order Approved!',
+                        message: `Your order for ${order.productName} has been approved`,
+                        actionUrl: '/member/orders',
+                        actionLabel: 'View Order'
+                    })
 
-                // Send email
-                await emailService.sendOrderApprovalEmail(order.userEmail, order)
+                    // Send email
+                    await emailService.sendOrderApprovalEmail(order.userEmail, order)
+                }
+            } catch (notifError) {
+                console.warn('Order notifications or emails failed:', notifError)
             }
 
             alert(`Order ${newStatus} successfully!`)

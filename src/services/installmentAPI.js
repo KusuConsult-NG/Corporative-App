@@ -69,23 +69,26 @@ export const broadcastAPI = {
             // 2. Get target users
             const targetUsers = await getTargetUsers(messageData.targetAudience)
 
-            // 3. Create individual notifications for each user
-            const notificationPromises = targetUsers.map(user =>
-                addDoc(collection(db, 'notifications'), {
-                    userId: user.id,
-                    type: 'broadcast',
-                    title: messageData.subject,
-                    message: messageData.message,
-                    read: false,
-                    broadcastId: broadcastDoc.id,
-                    createdAt: serverTimestamp(),
-                    actionUrl: null,
-                    actionLabel: null,
-                    priority: 'normal'
-                })
-            )
-
-            await Promise.all(notificationPromises)
+            // 3. Create individual notifications for each user (optional, don't fail entire broadcast)
+            try {
+                const notificationPromises = targetUsers.map(user =>
+                    addDoc(collection(db, 'notifications'), {
+                        userId: user.id,
+                        type: 'broadcast',
+                        title: messageData.subject,
+                        message: messageData.message,
+                        read: false,
+                        broadcastId: broadcastDoc.id,
+                        createdAt: serverTimestamp(),
+                        actionUrl: null,
+                        actionLabel: null,
+                        priority: 'normal'
+                    })
+                )
+                await Promise.allSettled(notificationPromises)
+            } catch (notifErr) {
+                console.warn('Individual notifications failed:', notifErr)
+            }
 
             // 4. Update broadcast with stats
             await updateDoc(doc(db, 'broadcasts', broadcastDoc.id), {
@@ -93,12 +96,16 @@ export const broadcastAPI = {
                 deliveredCount: targetUsers.length
             })
 
-            // 5. Send emails if enabled
-            if (messageData.sendEmail !== false) { // Default to true if not specified
-                const emailPromises = targetUsers.map(user =>
-                    emailService.sendBroadcastEmail(user.email, messageData)
-                )
-                await Promise.all(emailPromises)
+            // 5. Send emails if enabled (optional, don't fail entire broadcast)
+            if (messageData.sendEmail !== false) {
+                try {
+                    const emailPromises = targetUsers.map(user =>
+                        emailService.sendBroadcastEmail(user.email, messageData)
+                    )
+                    await Promise.allSettled(emailPromises)
+                } catch (emailErr) {
+                    console.warn('Broadcast emails failed:', emailErr)
+                }
             }
 
             return {

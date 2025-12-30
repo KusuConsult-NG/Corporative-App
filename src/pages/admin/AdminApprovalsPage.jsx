@@ -64,17 +64,23 @@ export default function AdminApprovalsPage() {
                 reviewNote: note
             })
 
-            // Send email notification to user
-            await emailService.sendApprovalStatusUpdate(
-                request.userEmail,
-                request.userName,
-                request.type,
-                status,
-                note
-            )
+            // Send email notification to user (optional, don't fail if this fails)
+            try {
+                await emailService.sendApprovalStatusUpdate(
+                    request.userEmail,
+                    request.userName,
+                    request.type,
+                    status,
+                    note
+                )
+            } catch (emailError) {
+                console.warn('Email notification failed:', emailError)
+                // We continue because the database was updated successfully
+            }
 
             // Refresh the list
             await fetchApprovalRequests()
+            alert(`Request ${status} successfully!`)
         } catch (error) {
             console.error('Error processing approval:', error)
             alert('Failed to process approval. Please try again.')
@@ -115,8 +121,8 @@ export default function AdminApprovalsPage() {
                 <button
                     onClick={() => setFilter('pending')}
                     className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === 'pending'
-                            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                 >
                     <Clock size={16} className="inline mr-1" />
@@ -125,8 +131,8 @@ export default function AdminApprovalsPage() {
                 <button
                     onClick={() => setFilter('approved')}
                     className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === 'approved'
-                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                 >
                     <CheckCircle size={16} className="inline mr-1" />
@@ -135,8 +141,8 @@ export default function AdminApprovalsPage() {
                 <button
                     onClick={() => setFilter('rejected')}
                     className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === 'rejected'
-                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                 >
                     <XCircle size={16} className="inline mr-1" />
@@ -145,8 +151,8 @@ export default function AdminApprovalsPage() {
                 <button
                     onClick={() => setFilter('all')}
                     className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${filter === 'all'
-                            ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                         }`}
                 >
                     All ({approvalRequests.length})
