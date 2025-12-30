@@ -53,6 +53,7 @@ import ClearDBAction from './pages/ClearDBAction'
 import MemberLayout from './components/layout/MemberLayout'
 import AdminLayout from './components/layout/AdminLayout'
 import ErrorBoundary from './components/ErrorBoundary'
+import { ToastProvider } from './components/Toast'
 
 function App() {
     const { isAuthenticated, user } = useAuthStore()
@@ -68,60 +69,62 @@ function App() {
     }, [theme])
 
     return (
-        <ErrorBoundary>
-            <Router>
-                <Routes>
-                    {/* Public Routes */}
-                    <Route path="/auth" element={!isAuthenticated ? <AuthPage /> : <Navigate to={canAccessAdmin(user) ? '/admin/dashboard' : '/member/dashboard'} />} />
-                    <Route path="/verify-email" element={<VerifyEmailPage />} />
-                    <Route path="/email-verification-pending" element={<EmailVerificationPendingPage />} />
-                    <Route path="/registration-fee" element={<RegistrationFeePage />} />
-                    <Route path="/sh-clear-database-xyz" element={<ClearDBAction />} />
-                    <Route path="/guarantor-approval/:token" element={<GuarantorApprovalPage />} />
+        <ToastProvider>
+            <ErrorBoundary>
+                <Router>
+                    <Routes>
+                        {/* Public Routes */}
+                        <Route path="/auth" element={!isAuthenticated ? <AuthPage /> : <Navigate to={canAccessAdmin(user) ? '/admin/dashboard' : '/member/dashboard'} />} />
+                        <Route path="/verify-email" element={<VerifyEmailPage />} />
+                        <Route path="/email-verification-pending" element={<EmailVerificationPendingPage />} />
+                        <Route path="/registration-fee" element={<RegistrationFeePage />} />
+                        <Route path="/sh-clear-database-xyz" element={<ClearDBAction />} />
+                        <Route path="/guarantor-approval/:token" element={<GuarantorApprovalPage />} />
 
-                    {/* Member Routes */}
-                    <Route path="/member" element={isAuthenticated && user?.role === 'member' ? <MemberLayout /> : <Navigate to="/auth" />}>
-                        <Route path="dashboard" element={<MemberDashboard />} />
-                        <Route path="savings" element={<SavingsPage />} />
-                        <Route path="savings/reduce" element={<SavingsReductionPage />} />
-                        <Route path="loans/apply" element={<LoanApplicationPage />} />
-                        <Route path="loans" element={<MyLoansPage />} />
-                        <Route path="loans/deductions" element={<LoanDeductionHistoryPage />} />
-                        <Route path="commodities" element={<CommoditiesPage />} />
-                        <Route path="orders" element={<MyOrdersPage />} />
-                        <Route path="messages" element={<MessagesPage />} />
-                        <Route path="notifications" element={<NotificationsPage />} />
-                        <Route path="submit-report" element={<SubmitReportPage />} />
-                        <Route path="settings" element={<SettingsPage />} />
-                        <Route path="support" element={<SupportPage />} />
-                        <Route path="complaints" element={<ComplaintsPage />} />
-                        <Route path="profile" element={<ProfilePage />} />
-                    </Route>
+                        {/* Member Routes */}
+                        <Route path="/member" element={isAuthenticated && user?.role === 'member' ? <MemberLayout /> : <Navigate to="/auth" />}>
+                            <Route path="dashboard" element={<MemberDashboard />} />
+                            <Route path="savings" element={<SavingsPage />} />
+                            <Route path="savings/reduce" element={<SavingsReductionPage />} />
+                            <Route path="loans/apply" element={<LoanApplicationPage />} />
+                            <Route path="loans" element={<MyLoansPage />} />
+                            <Route path="loans/deductions" element={<LoanDeductionHistoryPage />} />
+                            <Route path="commodities" element={<CommoditiesPage />} />
+                            <Route path="orders" element={<MyOrdersPage />} />
+                            <Route path="messages" element={<MessagesPage />} />
+                            <Route path="notifications" element={<NotificationsPage />} />
+                            <Route path="submit-report" element={<SubmitReportPage />} />
+                            <Route path="settings" element={<SettingsPage />} />
+                            <Route path="support" element={<SupportPage />} />
+                            <Route path="complaints" element={<ComplaintsPage />} />
+                            <Route path="profile" element={<ProfilePage />} />
+                        </Route>
 
-                    {/* Admin Routes */}
-                    <Route path="/admin" element={isAuthenticated && canAccessAdmin(user) ? <AdminLayout /> : <Navigate to="/auth" />}>
-                        <Route path="dashboard" element={<AdminDashboard />} />
-                        <Route path="customer-care" element={<CustomerCareDashboard />} />
-                        <Route path="approvals" element={<AdminApprovalsPage />} />
-                        <Route path="commodity-orders" element={<AdminCommodityOrdersPage />} />
-                        <Route path="commodity-deductions" element={<AdminCommodityDeductionsPage />} />
-                        <Route path="broadcast" element={<AdminBroadcastPage />} />
-                        <Route path="loans/requests" element={<LoanRequestsPage />} />
-                        <Route path="members" element={<MembersPage />} />
-                        <Route path="roles" element={<RoleManagementPage />} />
-                        <Route path="savings" element={<AdminSavingsPage />} />
-                        <Route path="savings/reduction-requests" element={<AdminSavingsReductionPage />} />
-                        <Route path="profile-changes" element={<ProfileChangeRequestsPage />} />
-                        <Route path="commodities" element={<AdminCommoditiesPage />} />
-                        <Route path="complaints" element={<AdminComplaintsPage />} />
-                        <Route path="reports" element={<ReportsPage />} />
-                    </Route>
+                        {/* Admin Routes */}
+                        <Route path="/admin" element={isAuthenticated && canAccessAdmin(user) ? <AdminLayout /> : <Navigate to="/auth" />}>
+                            <Route path="dashboard" element={<AdminDashboard />} />
+                            <Route path="customer-care" element={<CustomerCareDashboard />} />
+                            <Route path="approvals" element={<AdminApprovalsPage />} />
+                            <Route path="commodity-orders" element={<AdminCommodityOrdersPage />} />
+                            <Route path="commodity-deductions" element={<AdminCommodityDeductionsPage />} />
+                            <Route path="broadcast" element={<AdminBroadcastPage />} />
+                            <Route path="loans/requests" element={<LoanRequestsPage />} />
+                            <Route path="members" element={<MembersPage />} />
+                            <Route path="roles" element={<RoleManagementPage />} />
+                            <Route path="savings" element={<AdminSavingsPage />} />
+                            <Route path="savings/reduction-requests" element={<AdminSavingsReductionPage />} />
+                            <Route path="profile-changes" element={<ProfileChangeRequestsPage />} />
+                            <Route path="commodities" element={<AdminCommoditiesPage />} />
+                            <Route path="complaints" element={<AdminComplaintsPage />} />
+                            <Route path="reports" element={<ReportsPage />} />
+                        </Route>
 
-                    {/* Default Route */}
-                    <Route path="/" element={<Navigate to="/auth" />} />
-                </Routes>
-            </Router>
-        </ErrorBoundary>
+                        {/* Default Route */}
+                        <Route path="/" element={<Navigate to="/auth" />} />
+                    </Routes>
+                </Router>
+            </ErrorBoundary>
+        </ToastProvider>
     )
 }
 
