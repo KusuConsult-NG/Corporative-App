@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, ShoppingBag, Truck, Zap, Home, Grid, Smartphone } from 'lucide-react'
+import { useAuthStore } from '../../store/authStore'
+import { requirePayment } from '../../utils/paymentUtils'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import ProductCard from '../../components/ui/ProductCard'
@@ -74,10 +76,21 @@ const PRODUCTS = [
 
 export default function CommoditiesPage() {
     const navigate = useNavigate()
+    const { user } = useAuthStore()
     const [selectedCategory, setSelectedCategory] = useState('all')
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedProduct, setSelectedProduct] = useState(null)
     const [showOrderModal, setShowOrderModal] = useState(false)
+
+    // Check payment status on mount
+    useEffect(() => {
+        const checkPayment = async () => {
+            await requirePayment(user, navigate, 'order commodities')
+        }
+        if (user) {
+            checkPayment()
+        }
+    }, [user, navigate])
 
     const filteredProducts = PRODUCTS.filter(product => {
         const matchesCategory = selectedCategory === 'all' || product.categoryId === selectedCategory

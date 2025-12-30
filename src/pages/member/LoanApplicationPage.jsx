@@ -15,6 +15,7 @@ import { formatCurrency } from '../../utils/formatters'
 import { loansAPI } from '../../services/api'
 import { useAuthStore } from '../../store/authStore'
 import { calculateLoanEligibility, calculateNewLoanRepayment, getUserSavingsBalance } from '../../utils/loanUtils'
+import { requirePayment } from '../../utils/paymentUtils'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
@@ -77,6 +78,16 @@ export default function LoanApplicationPage() {
 
     // Validation Errors
     const [errors, setErrors] = useState({})
+
+    // Check payment status on mount
+    useEffect(() => {
+        const checkPayment = async () => {
+            await requirePayment(user, navigate, 'apply for loans')
+        }
+        if (user) {
+            checkPayment()
+        }
+    }, [user, navigate])
 
     // Fetch savings balance on mount
     useEffect(() => {

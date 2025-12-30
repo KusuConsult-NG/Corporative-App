@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { PaystackButton } from 'react-paystack'
 import { CreditCard, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
@@ -11,9 +11,13 @@ const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
 
 export default function RegistrationFeePage() {
     const navigate = useNavigate()
+    const location = useLocation()
     const { user, updateRegistrationFeePayment } = useAuthStore()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+
+    // Get custom message from navigation state
+    const customMessage = location.state?.message
 
     const amount = 200000 // ₦2,000 in kobo
     const currentUser = auth.currentUser
@@ -149,6 +153,18 @@ export default function RegistrationFeePage() {
                             </li>
                         </ul>
                     </div>
+
+                    {/* Custom message from redirect */}
+                    {customMessage && (
+                        <div className="mb-4 p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                            <div className="flex items-start gap-3">
+                                <AlertCircle className="text-orange-600 dark:text-orange-400 flex-shrink-0 mt-0.5" size={20} />
+                                <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
+                                    {customMessage}
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
                     {error && (
                         <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg text-red-700 dark:text-red-400 text-sm">
