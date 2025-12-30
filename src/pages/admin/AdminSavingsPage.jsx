@@ -22,9 +22,9 @@ export default function AdminSavingsPage() {
             {/* Overview Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="p-6 bg-blue-600 text-white">
-                    <p className="text-blue-100 font-medium mb-1 text-xs">Total Savings Capital</p>
+                    <p className="text-blue-100 font-medium mb-1">Total Savings Capital</p>
                     <h2 className="text-2xl lg:text-3xl font-bold">{formatCurrency(450000000).split('.')[0]}</h2>
-                    <div className="flex items-center gap-2 mt-4 text-xs text-blue-100">
+                    <div className="flex items-center gap-2 mt-4 text-sm text-blue-100">
                         <span className="bg-white/20 px-2 py-0.5 rounded flex items-center gap-1">
                             <TrendingUp size={14} /> +8.5%
                         </span>
