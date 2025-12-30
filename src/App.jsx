@@ -80,7 +80,13 @@ function App() {
                     <Route path="/guarantor-approval/:token" element={<GuarantorApprovalPage />} />
 
                     {/* Member Routes */}
-                    <Route path="/member" element={isAuthenticated && user?.role === 'member' ? <MemberLayout /> : <Navigate to="/auth" />}>
+                    <Route path="/member" element={
+                        isAuthenticated && user?.role === 'member'
+                            ? (user.emailVerified
+                                ? (user.registrationFeePaid ? <MemberLayout /> : <Navigate to="/registration-fee" />)
+                                : <Navigate to="/email-verification-pending" state={{ email: user.email }} />)
+                            : <Navigate to="/auth" />
+                    }>
                         <Route path="dashboard" element={<MemberDashboard />} />
                         <Route path="savings" element={<SavingsPage />} />
                         <Route path="savings/reduce" element={<SavingsReductionPage />} />

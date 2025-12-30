@@ -30,9 +30,14 @@ export default function VerifyEmailPage() {
                 setVerifiedEmail(result.email)
                 setMessage('Your email has been verified successfully!')
 
-                // Redirect to payment page after 3 seconds
+                // Redirect to login page after 3 seconds with success state
                 setTimeout(() => {
-                    navigate('/registration-fee')
+                    navigate('/auth', {
+                        state: {
+                            verified: true,
+                            message: 'Email verified successfully! You can now login to complete your registration.'
+                        }
+                    })
                 }, 3000)
             } else {
                 setStatus('error')
