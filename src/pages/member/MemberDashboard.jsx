@@ -112,6 +112,31 @@ export default function MemberDashboard() {
 
     return (
         <div className="p-6 lg:p-10 scroll-smooth max-w-7xl mx-auto flex flex-col gap-8">
+            {/* Payment Reminder Alert */}
+            {!user?.registrationFeePaid && (
+                <Card className="bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-900/10 border-orange-200 dark:border-orange-800 p-6 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-lg shadow-orange-500/5 animate-pulse-subtle">
+                    <div className="flex items-center gap-4 text-center sm:text-left">
+                        <div className="size-14 rounded-2xl bg-orange-200 dark:bg-orange-800 flex items-center justify-center text-orange-600 dark:text-orange-400 shadow-inner">
+                            <AlertCircle size={32} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-orange-900 dark:text-orange-300 mb-1">
+                                Complete Your Registration
+                            </h3>
+                            <p className="text-sm text-orange-700 dark:text-orange-400">
+                                Please pay your one-time registration fee (₦2,000) to activate your loan and commodity requests.
+                            </p>
+                        </div>
+                    </div>
+                    <Button
+                        onClick={() => navigate('/member/registration-fee')}
+                        className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-600/20 whitespace-nowrap px-8 py-3 w-full sm:w-auto"
+                    >
+                        Pay Now
+                    </Button>
+                </Card>
+            )}
+
             {/* Stats Cards Section */}
             <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {/* Total Savings (Primary Card) */}
