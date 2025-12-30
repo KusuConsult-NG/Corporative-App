@@ -50,6 +50,20 @@ export default function ProfilePage() {
         const file = e.target.files?.[0]
         if (!file) return
 
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png']
+        if (!allowedTypes.includes(file.type)) {
+            setError('Please upload a valid image (JPEG, JPG, or PNG)')
+            return
+        }
+
+        // Validate file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024 // 5MB in bytes
+        if (file.size > maxSize) {
+            setError('Image size must be less than 5MB')
+            return
+        }
+
         setUploadingPassport(true)
         setError('')
         setSuccess('')
@@ -64,12 +78,17 @@ export default function ProfilePage() {
             const downloadURL = await uploadPassport(file, user.userId)
 
             // Update user profile
-            await updateProfileField(user.userId, 'passport', downloadURL)
-            await updateProfileField(user.userId, 'passportUploadedAt', new Date())
+            const result1 = await updateProfileField(user.userId, 'passport', downloadURL)
+            const result2 = await updateProfileField(user.userId, 'passportUploadedAt', new Date())
 
-            setSuccess('Passport photo uploaded successfully!')
-            setTimeout(() => setSuccess(''), 3000)
+            if (result1.success && result2.success) {
+                setSuccess('Passport photo uploaded successfully!')
+                setTimeout(() => setSuccess(''), 3000)
+            } else {
+                setError('Photo uploaded but failed to update profile. Please try again.')
+            }
         } catch (err) {
+            console.error('Upload error:', err)
             setError(err.message || 'Failed to upload passport photo')
         } finally {
             setUploadingPassport(false)
@@ -90,9 +109,14 @@ export default function ProfilePage() {
         setSuccess('')
 
         try {
-            await updateProfileField(user.userId, 'phone', phone)
-            setSuccess('Phone number updated successfully!')
-            setTimeout(() => setSuccess(''), 3000)
+            const result = await updateProfileField(user.userId, 'phone', phone)
+
+            if (result.success) {
+                setSuccess('Phone number updated successfully!')
+                setTimeout(() => setSuccess(''), 3000)
+            } else {
+                setError(result.error || 'Failed to update phone number')
+            }
         } catch (err) {
             setError(err.message || 'Failed to update phone number')
         } finally {
