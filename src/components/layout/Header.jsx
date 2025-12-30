@@ -1,4 +1,4 @@
-import { Bell, Menu, Moon, Sun } from 'lucide-react'
+import { Bell, Menu, Moon, Sun, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
@@ -6,7 +6,7 @@ import { useThemeStore } from '../../store/themeStore'
 import { subscribeToUnreadCount } from '../../utils/notificationUtils'
 import NotificationBadge from '../NotificationBadge'
 
-export default function Header() {
+export default function Header({ onMenuClick }) {
     const { user } = useAuthStore()
     const { theme, toggleTheme } = useThemeStore()
     const navigate = useNavigate()
@@ -21,18 +21,25 @@ export default function Header() {
 
     return (
         <header className="h-20 flex items-center justify-between px-6 lg:px-10 border-b border-slate-200 dark:border-slate-800 bg-surface-light/80 dark:bg-surface-dark/80 backdrop-blur-sm sticky top-0 z-20">
-            <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-2 lg:hidden mb-2">
-                    <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
-                        <Menu className="text-slate-500" size={24} />
-                    </button>
+            <div className="flex items-center gap-4 flex-1">
+                {/* Mobile Menu Button */}
+                <button
+                    onClick={onMenuClick}
+                    className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                    aria-label="Toggle menu"
+                >
+                    <Menu className="text-slate-500" size={24} />
+                </button>
+
+                {/* Welcome Text */}
+                <div className="flex flex-col gap-1">
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                        Welcome back, {user?.firstName || user?.name?.split(' ')[0] || 'Member'}
+                    </h2>
+                    <p className="hidden md:block text-slate-500 dark:text-slate-400 text-sm">
+                        Here is your financial overview and recent activities.
+                    </p>
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-                    Welcome back, {user?.firstName || user?.name?.split(' ')[0] || 'Member'}
-                </h2>
-                <p className="hidden md:block text-slate-500 dark:text-slate-400 text-sm">
-                    Here is your financial overview and recent activities.
-                </p>
             </div>
 
             <div className="flex items-center gap-4">
