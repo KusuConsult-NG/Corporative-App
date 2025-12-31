@@ -3,15 +3,12 @@ import { User, Mail, Building, Phone, Upload, CreditCard, CheckCircle, AlertCirc
 import { useAuthStore } from '../../store/authStore'
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
-import { db } from '../../lib/firebase'
-import { calculateProfileCompletion, getMissingProfileFields } from '../../utils/profileUtils'
 import { calculateProfileCompletion, getMissingProfileFields } from '../../utils/profileUtils'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import AddBankDetailsModal from '../../components/AddBankDetailsModal'
 import ApprovalStatusBadge from '../../components/ui/ApprovalStatusBadge'
-import { useToast } from '../../context/ToastContext'
 import { useToast } from '../../context/ToastContext'
 
 // Helper to compress image to Base64 (bypassing Storage bucket issues)
