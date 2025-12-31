@@ -14,7 +14,11 @@ export default function ClearDBAction() {
         'users', 'savings', 'savings_transactions', 'loans',
         'guarantor_approvals', 'commodities', 'commodity_orders',
         'commodityOrders', 'wallets', 'wallet_transactions',
-        'reports', 'messages', 'approvalRequests'
+        'reports', 'messages', 'approvalRequests',
+        'diagnostic_logs', 'broadcasts', 'complaints',
+        'savings_reduction_requests', 'installment_orders',
+        'profile_change_requests', 'roleHistory',
+        'commodityPayments'
     ]
 
     const clearAll = async () => {
@@ -31,12 +35,21 @@ export default function ClearDBAction() {
                         await Promise.all(subDeletePromises)
                         addLog(`  Cleared deductions for loan ${d.id}`)
                     }
+                    // Check for installmentSchedule if it's a commodity order
+                    if (colName === 'commodityOrders' || colName === 'commodity_orders') {
+                        const subSnapshot = await getDocs(collection(db, colName, d.id, 'installmentSchedule'))
+                        const subDel = subSnapshot.docs.map(sd => deleteDoc(sd.ref))
+                        await Promise.all(subDel)
+                        if (subSnapshot.size > 0) addLog(`  Cleared installments for order ${d.id}`)
+                    }
                     return deleteDoc(d.ref)
                 })
                 await Promise.all(deletePromises)
                 addLog(`Finished clearing: ${colName} (${snapshot.size} docs)`)
             }
-            setStatus('Completed Successfully')
+            localStorage.clear()
+            addLog('LocalStorage cleared.')
+            setStatus('Completed Successfully. Please refresh or go to /auth')
         } catch (error) {
             console.error(error)
             addLog(`ERROR: ${error.message}`)
