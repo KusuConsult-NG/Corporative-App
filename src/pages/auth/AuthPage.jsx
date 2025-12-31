@@ -101,10 +101,10 @@ export default function AuthPage() {
             return
         }
 
-        // Validate Staff Number format (S followed by 4 digits)
-        const staffNumberPattern = /^S\d{4}$/
+        // Validate Staff Number format (Alphanumeric)
+        const staffNumberPattern = /^[a-zA-Z0-9]+$/
         if (!staffNumberPattern.test(registerData.staffId)) {
-            setErrors({ staffId: 'Staff Number must be in format S1234 (S followed by 4 digits)' })
+            setErrors({ staffId: 'Staff Number must contain only letters and numbers' })
             setLoading(false)
             return
         }
