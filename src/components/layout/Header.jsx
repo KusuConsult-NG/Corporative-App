@@ -32,8 +32,12 @@ export default function Header({ onMenuClick }) {
                 </button>
 
                 {/* Welcome Text */}
-                <div className="flex flex-col gap-1">
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                <div
+                    className="flex flex-col gap-1 cursor-pointer"
+                    onClick={() => navigate('/member/profile')}
+                    title="Go to profile"
+                >
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight hover:text-primary transition-colors">
                         Welcome back, {user?.firstName || user?.name?.split(' ')[0] || 'Member'}
                     </h2>
                     <p className="hidden md:block text-slate-500 dark:text-slate-400 text-sm">
@@ -64,8 +68,11 @@ export default function Header({ onMenuClick }) {
 
                 {/* User Profile */}
                 <button
-                    onClick={() => navigate('/member/profile')}
-                    className="hidden sm:flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 p-2 rounded-lg transition-colors cursor-pointer"
+                    onClick={() => {
+                        console.log('Profile button clicked')
+                        navigate('/member/profile')
+                    }}
+                    className="hidden sm:flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 p-2 rounded-lg transition-colors cursor-pointer"
                 >
                     <div className="text-right hidden md:block">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">
