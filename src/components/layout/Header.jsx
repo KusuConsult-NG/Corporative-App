@@ -74,9 +74,17 @@ export default function Header({ onMenuClick }) {
                             Member ID: {user?.memberId || 'N/A'}
                         </p>
                     </div>
-                    <div className="size-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center border-2 border-white dark:border-slate-600 shadow-sm font-bold text-slate-700 dark:text-slate-300">
-                        {user?.firstName?.charAt(0) || user?.name?.charAt(0) || 'M'}
-                    </div>
+                    {user?.passport ? (
+                        <img
+                            src={user.passport}
+                            alt="Profile"
+                            className="size-10 rounded-full object-cover border-2 border-white dark:border-slate-600 shadow-sm"
+                        />
+                    ) : (
+                        <div className="size-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center border-2 border-white dark:border-slate-600 shadow-sm font-bold text-slate-700 dark:text-slate-300">
+                            {user?.firstName?.charAt(0) || user?.name?.charAt(0) || 'M'}
+                        </div>
+                    )}
                 </div>
             </div>
         </header>
