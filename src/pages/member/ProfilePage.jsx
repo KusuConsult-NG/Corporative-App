@@ -3,7 +3,8 @@ import { User, Mail, Building, Phone, Upload, CreditCard, CheckCircle, AlertCirc
 import { useAuthStore } from '../../store/authStore'
 import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
-import { uploadPassport, deletePassport } from '../../utils/storageUtils'
+import { db } from '../../lib/firebase'
+import { calculateProfileCompletion, getMissingProfileFields } from '../../utils/profileUtils'
 import { calculateProfileCompletion, getMissingProfileFields } from '../../utils/profileUtils'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -11,7 +12,49 @@ import Input from '../../components/ui/Input'
 import AddBankDetailsModal from '../../components/AddBankDetailsModal'
 import ApprovalStatusBadge from '../../components/ui/ApprovalStatusBadge'
 import { useToast } from '../../context/ToastContext'
+import { useToast } from '../../context/ToastContext'
 
+// Helper to compress image to Base64 (bypassing Storage bucket issues)
+const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.readAsDataURL(file)
+        reader.onload = (event) => {
+            const img = new Image()
+            img.src = event.target.result
+            img.onload = () => {
+                const canvas = document.createElement('canvas')
+                const MAX_WIDTH = 400
+                const MAX_HEIGHT = 400
+                let width = img.width
+                let height = img.height
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width
+                        width = MAX_WIDTH
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height
+                        height = MAX_HEIGHT
+                    }
+                }
+
+                canvas.width = width
+                canvas.height = height
+                const ctx = canvas.getContext('2d')
+                ctx.drawImage(img, 0, 0, width, height)
+
+                // Compress to JPEG with 0.8 quality to keep size low for Firestore
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+                resolve(dataUrl)
+            }
+            img.onerror = (err) => reject(new Error('Failed to load image'))
+        }
+        reader.onerror = (err) => reject(new Error('Failed to read file'))
+    })
+}
 export default function ProfilePage() {
     const { user, updateProfileField } = useAuthStore()
     const toast = useToast()
@@ -77,15 +120,13 @@ export default function ProfilePage() {
         setUploadingPassport(true)
 
         try {
-            // Capture old passport for cleanup
-            const oldPassportUrl = user?.passport
-
-            // Upload new passport
-            const downloadURL = await uploadPassport(file, user.userId)
+            // Convert to Base64 (Compressed)
+            // This stores the image directly in Firestore, avoiding Storage buckets entirely
+            const base64Image = await compressImage(file)
 
             // Update user profile
             const profileUpdates = {
-                passport: downloadURL,
+                passport: base64Image,
                 passportUploadedAt: new Date()
             }
 
@@ -100,18 +141,13 @@ export default function ProfilePage() {
             const result = await updateProfileField(user.userId, profileUpdates)
 
             if (result.success) {
-                toast.success('Passport photo uploaded successfully!')
-
-                // Cleanup old passport (Non-blocking)
-                if (oldPassportUrl) {
-                    deletePassport(oldPassportUrl).catch(console.error)
-                }
+                toast.success('Passport photo updated successfully!')
             } else {
-                toast.error(result.error || 'Photo uploaded but failed to update profile.')
+                toast.error(result.error || 'Failed to update profile.')
             }
         } catch (err) {
             console.error('Upload flow error:', err)
-            toast.error(err.message || 'Failed to upload passport photo')
+            toast.error(err.message || 'Failed to process image.')
         } finally {
             setUploadingPassport(false)
             // Reset input
