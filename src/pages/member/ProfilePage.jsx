@@ -57,6 +57,10 @@ export default function ProfilePage() {
     const toast = useToast()
     const [loading, setLoading] = useState(false)
     const [uploadingPassport, setUploadingPassport] = useState(false)
+
+    // Debug log to verify new version is loaded
+    useEffect(() => { console.log('ProfilePage v2.0 (Base64) loaded') }, [])
+
     const [showBankModal, setShowBankModal] = useState(false)
     const [bankRequests, setBankRequests] = useState([])
     const [phone, setPhone] = useState(user?.phone || '')
