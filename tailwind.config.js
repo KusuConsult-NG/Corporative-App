@@ -37,9 +37,14 @@ export default {
                     '0%': { transform: 'translateX(-100%)' },
                     '100%': { transform: 'translateX(0)' },
                 },
+                toastSlideIn: {
+                    '0%': { transform: 'translateX(100%)', opacity: '0' },
+                    '100%': { transform: 'translateX(0)', opacity: '1' },
+                },
             },
             animation: {
                 slideInRight: 'slideInRight 0.3s ease-out',
+                'toast-slide-in': 'toastSlideIn 0.3s ease-out',
             },
         },
     },

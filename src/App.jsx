@@ -49,6 +49,7 @@ import CustomerCareDashboard from './pages/admin/CustomerCareDashboard'
 // Public Pages
 import GuarantorApprovalPage from './pages/GuarantorApprovalPage'
 import ClearDBAction from './pages/ClearDBAction'
+import DiagnosticPage from './pages/DiagnosticPage'
 
 import MemberLayout from './components/layout/MemberLayout'
 import AdminLayout from './components/layout/AdminLayout'
@@ -78,6 +79,7 @@ function App() {
                     <Route path="/registration-fee" element={<RegistrationFeePage />} />
                     <Route path="/sh-clear-database-xyz" element={<ClearDBAction />} />
                     <Route path="/guarantor-approval/:token" element={<GuarantorApprovalPage />} />
+                    <Route path="/diagnostic" element={<DiagnosticPage />} />
 
                     {/* Member Routes */}
                     <Route path="/member" element={isAuthenticated && user?.role === 'member' ? <MemberLayout /> : <Navigate to="/auth" />}>

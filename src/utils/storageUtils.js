@@ -9,10 +9,16 @@ import { storage } from '../lib/firebase'
  */
 export const uploadPassport = async (file, userId) => {
     try {
-        // Validate file type
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png']
-        if (!validTypes.includes(file.type)) {
-            throw new Error('Invalid file type. Please upload a JPG or PNG image.')
+        // Validate file type - check both MIME type and extension
+        const validMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+        const validExtensions = ['jpg', 'jpeg', 'png', 'webp']
+
+        const fileExtension = file.name.split('.').pop().toLowerCase()
+        const isValidMime = validMimeTypes.includes(file.type)
+        const isValidExtension = validExtensions.includes(fileExtension)
+
+        if (!isValidMime && !isValidExtension) {
+            throw new Error('Invalid file type. Please upload a JPG, PNG, or WebP image.')
         }
 
         // Validate file size (max 5MB)
@@ -23,7 +29,9 @@ export const uploadPassport = async (file, userId) => {
 
         // Create a unique file name
         const timestamp = Date.now()
-        const fileName = `passports/${userId}_${timestamp}.${file.type.split('/')[1]}`
+        // Use extension from name if available, otherwise fallback to 'jpg'
+        const finalExtension = isValidExtension ? fileExtension : (file.type.split('/')[1] || 'jpg')
+        const fileName = `passports/${userId}_${timestamp}.${finalExtension}`
 
         // Create a reference to the file location
         const storageRef = ref(storage, fileName)
@@ -36,8 +44,20 @@ export const uploadPassport = async (file, userId) => {
 
         return downloadURL
     } catch (error) {
-        console.error('Error uploading passport:', error)
-        throw error
+        console.error('Detailed storage upload error:', {
+            code: error.code,
+            message: error.message,
+            userId,
+            fileName: file.name
+        })
+
+        if (error.code === 'storage/unauthorized') {
+            throw new Error('Upload permission denied. Please ensure you are logged in.')
+        } else if (error.code === 'storage/quota-exceeded') {
+            throw new Error('Storage quota exceeded. Please contact support.')
+        }
+
+        throw new Error(error.message || 'Failed to upload image to server.')
     }
 }
 
@@ -63,17 +83,11 @@ export const getPassportURL = async (userId) => {
  */
 export const deletePassport = async (passportURL) => {
     try {
-        if (!passportURL) return
+        if (!passportURL || !passportURL.startsWith('http')) return
 
-        // Extract the file path from the URL
-        const url = new URL(passportURL)
-        const pathMatch = url.pathname.match(/\/o\/(.+?)\?/)
-
-        if (pathMatch && pathMatch[1]) {
-            const filePath = decodeURIComponent(pathMatch[1])
-            const storageRef = ref(storage, filePath)
-            await deleteObject(storageRef)
-        }
+        // Create a reference from the URL directly
+        const storageRef = ref(storage, passportURL)
+        await deleteObject(storageRef)
     } catch (error) {
         console.error('Error deleting passport:', error)
         // Don't throw - deletion failure shouldn't block upload

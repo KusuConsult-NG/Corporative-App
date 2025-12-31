@@ -4,9 +4,11 @@ import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import { useThemeStore } from '../../store/themeStore'
+import { useToast } from '../../context/ToastContext'
 
 export default function SettingsPage() {
     const { theme, toggleTheme } = useThemeStore()
+    const toast = useToast()
     const [notifications, setNotifications] = useState({
         email: true,
         sms: false,
@@ -15,9 +17,15 @@ export default function SettingsPage() {
         commodityUpdate: false
     })
     const [monthlyContribution, setMonthlyContribution] = useState(50000)
+    const [automaticDeduction, setAutomaticDeduction] = useState(true)
 
     const handleSaveSettings = () => {
-        alert('Settings saved successfully!')
+        // In a real app, this would save to backend
+        toast.success('Settings saved successfully!')
+    }
+
+    const handleChangePassword = () => {
+        toast.info('Password change functionality will be available soon.')
     }
 
     return (
@@ -207,8 +215,13 @@ export default function SettingsPage() {
                             <p className="font-semibold text-blue-900 dark:text-blue-300">Automatic Deduction</p>
                             <p className="text-sm text-blue-700 dark:text-blue-400">Deduct on salary payment date</p>
                         </div>
-                        <button className="relative inline-flex h-6 w-11 items-center rounded-full bg-blue-500">
-                            <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-6" />
+                        <button
+                            onClick={() => setAutomaticDeduction(!automaticDeduction)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${automaticDeduction ? 'bg-blue-600' : 'bg-slate-300'
+                                }`}
+                        >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${automaticDeduction ? 'translate-x-6' : 'translate-x-1'
+                                }`} />
                         </button>
                     </div>
                 </div>
@@ -229,7 +242,11 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-4">
-                    <Button variant="outline" className="w-full justify-start">
+                    <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                        onClick={handleChangePassword}
+                    >
                         <Lock size={20} />
                         Change Password
                     </Button>

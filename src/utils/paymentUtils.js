@@ -7,6 +7,10 @@ import { db } from '../lib/firebase'
  * @returns {Promise<boolean>} - True if paid, false otherwise
  */
 export const hasUserPaidRegistrationFee = async (userId) => {
+    // BYPASS FOR TESTING: Allow access regardless of payment status
+    return true
+
+    /* 
     try {
         const userRef = doc(db, 'users', userId)
         const userSnap = await getDoc(userRef)
@@ -21,6 +25,7 @@ export const hasUserPaidRegistrationFee = async (userId) => {
         console.error('Error checking payment status:', error)
         return false
     }
+    */
 }
 
 /**

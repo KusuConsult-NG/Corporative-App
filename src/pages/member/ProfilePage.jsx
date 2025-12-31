@@ -10,16 +10,16 @@ import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import AddBankDetailsModal from '../../components/AddBankDetailsModal'
 import ApprovalStatusBadge from '../../components/ui/ApprovalStatusBadge'
+import { useToast } from '../../context/ToastContext'
 
 export default function ProfilePage() {
     const { user, updateProfileField } = useAuthStore()
+    const toast = useToast()
     const [loading, setLoading] = useState(false)
     const [uploadingPassport, setUploadingPassport] = useState(false)
     const [showBankModal, setShowBankModal] = useState(false)
     const [bankRequests, setBankRequests] = useState([])
     const [phone, setPhone] = useState(user?.phone || '')
-    const [error, setError] = useState('')
-    const [success, setSuccess] = useState('')
 
     // Sync phone state when user profile is updated/hydrated
     useEffect(() => {
@@ -58,50 +58,64 @@ export default function ProfilePage() {
         if (!file) return
 
         // Validate file type
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png']
-        if (!allowedTypes.includes(file.type)) {
-            setError('Please upload a valid image (JPEG, JPG, or PNG)')
+        const validExtensions = ['jpg', 'jpeg', 'png', 'webp']
+        const extension = file.name.split('.').pop().toLowerCase()
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+
+        if (!allowedTypes.includes(file.type) && !validExtensions.includes(extension)) {
+            toast.error('Please upload a valid image (JPEG, JPG, PNG)')
             return
         }
 
         // Validate file size (max 5MB)
-        const maxSize = 5 * 1024 * 1024 // 5MB in bytes
+        const maxSize = 5 * 1024 * 1024 // 5MB
         if (file.size > maxSize) {
-            setError('Image size must be less than 5MB')
+            toast.error('Image size must be less than 5MB')
             return
         }
 
         setUploadingPassport(true)
-        setError('')
-        setSuccess('')
 
         try {
-            // Delete old passport if exists
-            if (user?.passport) {
-                await deletePassport(user.passport)
-            }
+            // Capture old passport for cleanup
+            const oldPassportUrl = user?.passport
 
             // Upload new passport
             const downloadURL = await uploadPassport(file, user.userId)
 
-            // Update user profile with all fields at once
-            const result = await updateProfileField(user.userId, {
+            // Update user profile
+            const profileUpdates = {
                 passport: downloadURL,
-                passportUploadedAt: new Date(),
-                profileComplete: true // Auto-set if this was the last field
-            })
+                passportUploadedAt: new Date()
+            }
+
+            // Check if this makes the profile complete
+            const updatedUser = { ...user, ...profileUpdates }
+            const isComplete = calculateProfileCompletion(updatedUser) === 100
+
+            if (isComplete) {
+                profileUpdates.profileComplete = true
+            }
+
+            const result = await updateProfileField(user.userId, profileUpdates)
 
             if (result.success) {
-                setSuccess('Passport photo uploaded successfully!')
-                setTimeout(() => setSuccess(''), 3000)
+                toast.success('Passport photo uploaded successfully!')
+
+                // Cleanup old passport (Non-blocking)
+                if (oldPassportUrl) {
+                    deletePassport(oldPassportUrl).catch(console.error)
+                }
             } else {
-                setError(result.error || 'Photo uploaded but failed to update profile. Please try again.')
+                toast.error(result.error || 'Photo uploaded but failed to update profile.')
             }
         } catch (err) {
-            console.error('Upload error:', err)
-            setError(err.message || 'Failed to upload passport photo')
+            console.error('Upload flow error:', err)
+            toast.error(err.message || 'Failed to upload passport photo')
         } finally {
             setUploadingPassport(false)
+            // Reset input
+            e.target.value = ''
         }
     }
 
@@ -110,25 +124,22 @@ export default function ProfilePage() {
 
         // Validate phone number (11 digits starting with 0)
         if (!/^0\d{10}$/.test(phone)) {
-            setError('Phone number must be 11 digits starting with 0')
+            toast.error('Phone number must be 11 digits starting with 0')
             return
         }
 
         setLoading(true)
-        setError('')
-        setSuccess('')
 
         try {
             const result = await updateProfileField(user.userId, 'phone', phone)
 
             if (result.success) {
-                setSuccess('Phone number updated successfully!')
-                setTimeout(() => setSuccess(''), 3000)
+                toast.success('Phone number updated successfully!')
             } else {
-                setError(result.error || 'Failed to update phone number')
+                toast.error(result.error || 'Failed to update phone number')
             }
         } catch (err) {
-            setError(err.message || 'Failed to update phone number')
+            toast.error(err.message || 'Failed to update phone number')
         } finally {
             setLoading(false)
         }
@@ -186,20 +197,7 @@ export default function ProfilePage() {
                 )}
             </Card>
 
-            {/* Messages */}
-            {error && (
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg flex items-start gap-3 text-red-700 dark:text-red-400">
-                    <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">{error}</span>
-                </div>
-            )}
 
-            {success && (
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-start gap-3 text-green-700 dark:text-green-400">
-                    <CheckCircle size={20} className="flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">{success}</span>
-                </div>
-            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Profile Card */}

@@ -6,11 +6,14 @@ import Input from './ui/Input'
 import { formatCurrency } from '../utils/formatters'
 import { walletAPI } from '../services/api'
 import { useAuthStore } from '../store/authStore'
+import { useToast } from '../context/ToastContext'
+import { BANK_DETAILS } from '../utils/constants'
 
 const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
 
 export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
     const { user } = useAuthStore()
+    const toast = useToast()
     const [amount, setAmount] = useState('')
     const [paymentMethod, setPaymentMethod] = useState('card') // card, bank_transfer, ussd
     const [loading, setLoading] = useState(false)
@@ -56,7 +59,7 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
             })
 
             // Show success message
-            alert(`Successfully added ${formatCurrency(Number(amount))} to your wallet!`)
+            toast.success(`Successfully added ${formatCurrency(Number(amount))} to your wallet!`)
 
             // Call onSuccess callback
             if (onSuccess) onSuccess()
@@ -66,7 +69,7 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
             onClose()
         } catch (error) {
             console.error('Error recording transaction:', error)
-            alert('Payment successful but failed to update wallet. Please contact support.')
+            toast.error('Payment successful but failed to update wallet. Please contact support.')
         } finally {
             setLoading(false)
         }
@@ -81,12 +84,12 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
     // Handle card payment
     const handleCardPayment = () => {
         if (!amount || Number(amount) <= 0) {
-            alert('Please enter a valid amount')
+            toast.error('Please enter a valid amount')
             return
         }
 
         if (Number(amount) < 100) {
-            alert('Minimum amount is ₦100')
+            toast.error('Minimum amount is ₦100')
             return
         }
 
@@ -97,37 +100,28 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
     // Handle bank transfer
     const handleBankTransfer = async () => {
         if (!amount || Number(amount) <= 0) {
-            alert('Please enter a valid amount')
+            toast.error('Please enter a valid amount')
             return
         }
 
-        alert(
-            `To complete your payment:\n\n` +
-            `1. Transfer ${formatCurrency(Number(amount))} to the account shown\n` +
-            `2. Use your Member ID (${user?.memberId}) as reference\n` +
-            `3. Funds will be credited within 10 minutes after confirmation`
-        )
+        toast.info('Please verify your transfer details below before proceeding.')
     }
 
     // Handle USSD payment
     const handleUSSDPayment = () => {
         if (!amount || Number(amount) <= 0) {
-            alert('Please enter a valid amount')
+            toast.error('Please enter a valid amount')
             return
         }
 
-        alert(
-            `To pay via USSD:\n\n` +
-            `1. Dial *737*50*${amount}*159# on your phone\n` +
-            `2. Follow the prompts to complete payment\n` +
-            `3. Funds will be credited automatically`
-        )
+        toast.info('Please dial the code shown below.')
     }
 
     // Copy account number
     const copyAccountNumber = () => {
-        navigator.clipboard.writeText('9876543210')
+        navigator.clipboard.writeText(BANK_DETAILS.accountNumber)
         setCopied(true)
+        toast.success('Account number copied!')
         setTimeout(() => setCopied(false), 2000)
     }
 
@@ -176,8 +170,8 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
                             <button
                                 onClick={() => setPaymentMethod('card')}
                                 className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${paymentMethod === 'card'
-                                        ? 'border-primary bg-primary/5'
-                                        : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'
+                                    ? 'border-primary bg-primary/5'
+                                    : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'
                                     }`}
                             >
                                 <div className={`size-10 rounded-lg flex items-center justify-center ${paymentMethod === 'card' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
@@ -194,8 +188,8 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
                             <button
                                 onClick={() => setPaymentMethod('bank_transfer')}
                                 className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${paymentMethod === 'bank_transfer'
-                                        ? 'border-primary bg-primary/5'
-                                        : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'
+                                    ? 'border-primary bg-primary/5'
+                                    : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'
                                     }`}
                             >
                                 <div className={`size-10 rounded-lg flex items-center justify-center ${paymentMethod === 'bank_transfer' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
@@ -212,8 +206,8 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
                             <button
                                 onClick={() => setPaymentMethod('ussd')}
                                 className={`w-full flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${paymentMethod === 'ussd'
-                                        ? 'border-primary bg-primary/5'
-                                        : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'
+                                    ? 'border-primary bg-primary/5'
+                                    : 'border-slate-200 dark:border-slate-700 hover:border-primary/50'
                                     }`}
                             >
                                 <div className={`size-10 rounded-lg flex items-center justify-center ${paymentMethod === 'ussd' ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
@@ -235,16 +229,16 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-blue-700 dark:text-blue-400">Bank Name:</span>
-                                    <span className="font-semibold text-blue-900 dark:text-blue-200">GTBank</span>
+                                    <span className="font-semibold text-blue-900 dark:text-blue-200">{BANK_DETAILS.bankName}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-blue-700 dark:text-blue-400">Account Name:</span>
-                                    <span className="font-semibold text-blue-900 dark:text-blue-200">AWSLMCSL Coop</span>
+                                    <span className="font-semibold text-blue-900 dark:text-blue-200">{BANK_DETAILS.accountName}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-blue-700 dark:text-blue-400">Account Number:</span>
                                     <div className="flex items-center gap-2">
-                                        <span className="font-semibold text-blue-900 dark:text-blue-200">9876543210</span>
+                                        <span className="font-semibold text-blue-900 dark:text-blue-200">{BANK_DETAILS.accountNumber}</span>
                                         <button
                                             onClick={copyAccountNumber}
                                             className="p-1 rounded hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors"
