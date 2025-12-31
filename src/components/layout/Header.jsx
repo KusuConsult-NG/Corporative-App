@@ -63,7 +63,10 @@ export default function Header({ onMenuClick }) {
                 </button>
 
                 {/* User Profile */}
-                <div className="hidden sm:flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800">
+                <button
+                    onClick={() => navigate('/member/profile')}
+                    className="hidden sm:flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 p-2 rounded-lg transition-colors cursor-pointer"
+                >
                     <div className="text-right hidden md:block">
                         <p className="text-sm font-bold text-slate-900 dark:text-white">
                             {user?.firstName && user?.lastName
@@ -85,7 +88,7 @@ export default function Header({ onMenuClick }) {
                             {user?.firstName?.charAt(0) || user?.name?.charAt(0) || 'M'}
                         </div>
                     )}
-                </div>
+                </button>
             </div>
         </header>
     )
