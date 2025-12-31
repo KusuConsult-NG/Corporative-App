@@ -37,7 +37,14 @@ export const uploadPassport = async (file, userId) => {
         const storageRef = ref(storage, fileName)
 
         // Upload the file
-        await uploadBytes(storageRef, file)
+        // Upload the file with 60s timeout to prevent infinite hanging
+        // This handles cases where the Storage config is wrong or network is blocked
+        const uploadResult = await Promise.race([
+            uploadBytes(storageRef, file),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Upload timed out. Please check your connection or Storage config.')), 60000)
+            )
+        ])
 
         // Get the download URL
         const downloadURL = await getDownloadURL(storageRef)
