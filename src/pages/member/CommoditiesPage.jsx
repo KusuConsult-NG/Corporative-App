@@ -3,75 +3,19 @@ import { useNavigate } from 'react-router-dom'
 import { Search, ShoppingBag, Truck, Zap, Home, Grid, Smartphone } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { requirePayment } from '../../utils/paymentUtils'
+import { commoditiesAPI } from '../../services/api'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import ProductCard from '../../components/ui/ProductCard'
 import CommodityOrderModal from '../../components/CommodityOrderModal'
 
-// Mock Data
+// Category Configuration
 const CATEGORIES = [
     { id: 'all', label: 'All Items', icon: Grid },
     { id: 'foodstuff', label: 'Foodstuff', icon: ShoppingBag },
     { id: 'electronics', label: 'Electronics', icon: Smartphone },
     { id: 'solar', label: 'Solar & Power', icon: Zap },
     { id: 'appliances', label: 'Home Appliances', icon: Home },
-]
-
-const PRODUCTS = [
-    {
-        id: 1,
-        name: 'Bag of Rice (50kg)',
-        category: 'Foodstuff',
-        categoryId: 'foodstuff',
-        price: 65000,
-        description: 'Premium parboiled rice, stone-free and clean. 50kg bag.',
-        image: null
-    },
-    {
-        id: 2,
-        name: 'Samsung Galaxy A54',
-        category: 'Electronics',
-        categoryId: 'electronics',
-        price: 450000,
-        description: '256GB storage, 8GB RAM, 5G compatible smartphone.',
-        image: null
-    },
-    {
-        id: 3,
-        name: '3.5kVA Solar Inverter System',
-        category: 'Solar & Power',
-        categoryId: 'solar',
-        price: 1200000,
-        description: 'Complete installation including panels, batteries and inverter.',
-        image: null
-    },
-    {
-        id: 4,
-        name: 'Vegetable Oil (25L)',
-        category: 'Foodstuff',
-        categoryId: 'foodstuff',
-        price: 45000,
-        description: 'High quality vegetable oil for cooking and frying.',
-        image: null
-    },
-    {
-        id: 5,
-        name: 'Double Door Refrigerator',
-        category: 'Home Appliances',
-        categoryId: 'appliances',
-        price: 550000,
-        description: 'Energy saving double door aesthetic refrigerator.',
-        image: null
-    },
-    {
-        id: 6,
-        name: 'Smart TV 55"',
-        category: 'Electronics',
-        categoryId: 'electronics',
-        price: 380000,
-        description: '4K UHD Smart TV with built-in Netflix and YouTube.',
-        image: null
-    }
 ]
 
 export default function CommoditiesPage() {
@@ -81,6 +25,8 @@ export default function CommoditiesPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedProduct, setSelectedProduct] = useState(null)
     const [showOrderModal, setShowOrderModal] = useState(false)
+    const [products, setProducts] = useState([])
+    const [loading, setLoading] = useState(true)
 
     // Check payment status on mount
     useEffect(() => {
@@ -92,10 +38,26 @@ export default function CommoditiesPage() {
         }
     }, [user, navigate])
 
-    const filteredProducts = PRODUCTS.filter(product => {
+    // Fetch commodities from Firebase
+    useEffect(() => {
+        const fetchCommodities = async () => {
+            try {
+                setLoading(true)
+                const data = await commoditiesAPI.getAll()
+                setProducts(data)
+            } catch (error) {
+                console.error('Error fetching commodities:', error)
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchCommodities()
+    }, [])
+
+    const filteredProducts = products.filter(product => {
         const matchesCategory = selectedCategory === 'all' || product.categoryId === selectedCategory
-        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            product.description.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesSearch = product.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            product.description?.toLowerCase().includes(searchQuery.toLowerCase())
         return matchesCategory && matchesSearch
     })
 
@@ -159,7 +121,12 @@ export default function CommoditiesPage() {
 
             {/* Product Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredProducts.length > 0 ? (
+                {loading ? (
+                    <div className="col-span-full py-16 text-center">
+                        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                        <p className="text-slate-600 dark:text-slate-400">Loading commodities...</p>
+                    </div>
+                ) : filteredProducts.length > 0 ? (
                     filteredProducts.map((product) => (
                         <ProductCard
                             key={product.id}

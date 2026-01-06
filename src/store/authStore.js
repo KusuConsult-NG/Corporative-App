@@ -344,6 +344,7 @@ export const useAuthStore = create(
                     }
 
                     const userDoc = querySnapshot.docs[0]
+                    const userData = userDoc.data()
 
                     // Update user document
                     await updateDoc(doc(db, 'users', userDoc.id), {
@@ -360,6 +361,21 @@ export const useAuthStore = create(
                             registrationFeeReference: reference
                         } : null
                     }))
+
+                    // Auto-create virtual account after successful payment
+                    try {
+                        const { paystackService } = await import('../services/paystackService')
+                        await paystackService.createMemberVirtualAccount({
+                            memberId: userData.memberId,
+                            firstName: userData.firstName,
+                            lastName: userData.lastName,
+                            email: userData.email,
+                            phone: userData.phone || ''
+                        })
+                    } catch (accountError) {
+                        console.error('Error creating virtual account:', accountError)
+                        // Don't fail the payment update if virtual account creation fails
+                    }
 
                     return { success: true }
                 } catch (error) {

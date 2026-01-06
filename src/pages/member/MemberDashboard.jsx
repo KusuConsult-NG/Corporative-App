@@ -15,7 +15,7 @@ import {
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatCurrency } from '../../utils/formatters'
-import { guarantorAPI } from '../../services/api'
+import { guarantorAPI, walletAPI, loansAPI } from '../../services/api'
 import { useAuthStore } from '../../store/authStore'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -41,74 +41,62 @@ export default function MemberDashboard() {
         fetchRequests()
     }, [user?.memberId])
 
-    // Mock data
-    const financialData = {
-        totalSavings: 1250000,
-        savingsChange: 20,
-        activeLoan: 500000,
-        loanDueDate: 'Oct 25, 2023',
-        commodityLimit: 200000,
-    }
+    // Fetch financial data
+    const [financialData, setFinancialData] = useState({
+        totalSavings: 0,
+        savingsChange: 0,
+        activeLoan: 0,
+        loanDueDate: null,
+        commodityLimit: 0,
+    })
+    const [transactions, setTransactions] = useState([])
+    const [loadingFinancial, setLoadingFinancial] = useState(true)
 
-    const transactions = [
-        {
-            id: 1,
-            date: 'Sep 20',
-            description: 'Monthly Contribution',
-            amount: 20000,
-            type: 'credit',
-            status: 'success',
-            icon: <Wallet size={16} />,
-            color: 'blue'
-        },
-        {
-            id: 2,
-            date: 'Sep 15',
-            description: 'Loan Repayment',
-            amount: -15000,
-            type: 'debit',
-            status: 'success',
-            icon: <CreditCard size={16} />,
-            color: 'orange'
-        },
-        {
-            id: 3,
-            date: 'Sep 10',
-            description: 'Commodity - Rice Bag',
-            amount: -45000,
-            type: 'debit',
-            status: 'pending',
-            icon: <ShoppingBag size={16} />,
-            color: 'purple'
-        },
-        {
-            id: 4,
-            date: 'Sep 01',
-            description: 'Monthly Contribution',
-            amount: 20000,
-            type: 'credit',
-            status: 'success',
-            icon: <Wallet size={16} />,
-            color: 'blue'
-        },
-    ]
+    useEffect(() => {
+        const fetchFinancialData = async () => {
+            if (!user?.memberId) return
+            try {
+                setLoadingFinancial(true)
+                // Fetch wallet/savings balance
+                const wallet = await walletAPI.getWallet(user.memberId)
 
-    const commodities = [
-        {
-            id: 1,
-            name: 'Premium Rice 50kg',
-            category: 'Foodstuff',
-            price: 45000,
-            image: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?w=400&h=300&fit=crop'
-        },
-        {
-            id: 2,
-            name: 'Smart TV 43"',
-            category: 'Electronics',
-            price: 180000,
-            image: 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=400&h=300&fit=crop'
-        },
-    ]
+                // Fetch recent transactions
+                const txns = await walletAPI.getTransactions(user.memberId, 4)
+
+                // Fetch active loans
+                const loans = await loansAPI.getLoans(user.memberId)
+                const activeLoans = loans.filter(loan => loan.status === 'approved' && loan.totalRepaid < loan.amount)
+
+                setFinancialData({
+                    totalSavings: wallet?.balance || 0,
+                    savingsChange: 0, // Could calculate from transaction history
+                    activeLoan: activeLoans.length > 0 ? (activeLoans[0].amount - activeLoans[0].totalRepaid) : 0,
+                    loanDueDate: activeLoans.length > 0 ? new Date(activeLoans[0].createdAt?.seconds * 1000).toLocaleDateString() : null,
+                    commodityLimit: Math.min(wallet?.balance * 0.5, 200000) || 0, // 50% of savings, max 200k
+                })
+
+                // Transform transactions for display
+                const transformedTxns = txns.map((txn, idx) => ({
+                    id: txn.id,
+                    date: txn.createdAt?.toDate?.().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) || 'Recent',
+                    description: txn.description || 'Transaction',
+                    amount: txn.amount,
+                    type: txn.amount > 0 ? 'credit' : 'debit',
+                    status: txn.status || 'success',
+                    icon: <Wallet size={16} />,
+                    color: txn.amount > 0 ? 'blue' : 'orange'
+                }))
+                setTransactions(transformedTxns)
+            } catch (error) {
+                console.error('Error fetching financial data:', error)
+            } finally {
+                setLoadingFinancial(false)
+            }
+        }
+        fetchFinancialData()
+    }, [user?.memberId])
+
+    // Remove hardcoded commodities spotlight - will show dynamic data
 
     return (
         <div className="p-6 lg:p-10 scroll-smooth max-w-7xl mx-auto flex flex-col gap-8">
@@ -389,57 +377,6 @@ export default function MemberDashboard() {
                         </div>
                     )}
 
-                    {/* Commodities Spotlight */}
-                    <div className="flex flex-col gap-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Commodity Spotlight</h3>
-                            <div className="flex gap-2">
-                                <button className="size-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
-                                    <ChevronLeft size={16} />
-                                </button>
-                                <button className="size-8 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
-                                    <ChevronRight size={16} />
-                                </button>
-                            </div>
-                        </div>
-
-                        <Card className="h-full flex flex-col">
-                            <div className="flex-1 space-y-4">
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                    Available on credit based on your limit.
-                                </p>
-
-                                {commodities.map((item) => (
-                                    <div
-                                        key={item.id}
-                                        className="group flex gap-4 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all cursor-pointer"
-                                    >
-                                        <div
-                                            className="size-20 rounded-lg bg-slate-100 dark:bg-slate-800 bg-cover bg-center shrink-0"
-                                            style={{ backgroundImage: `url(${item.image})` }}
-                                        ></div>
-                                        <div className="flex flex-col justify-center flex-1">
-                                            <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-primary transition-colors">
-                                                {item.name}
-                                            </h4>
-                                            <p className="text-slate-500 text-xs mb-2">{item.category}</p>
-                                            <p className="font-bold text-slate-900 dark:text-white">{formatCurrency(item.price)}</p>
-                                        </div>
-                                        <div className="flex items-center justify-center text-slate-300 group-hover:text-primary transition-colors">
-                                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                            </svg>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <Button variant="outline" className="mt-4" onClick={() => navigate('/member/commodities')}>
-                                <span className="hidden sm:inline">View All Commodities</span>
-                                <span className="inline sm:hidden">View All</span>
-                            </Button>
-                        </Card>
-                    </div>
                 </div>
             </section>
 

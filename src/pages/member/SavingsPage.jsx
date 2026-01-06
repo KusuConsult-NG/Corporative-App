@@ -16,7 +16,9 @@ import { formatCurrency, formatDate } from '../../utils/formatters'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import AddFundsModal from '../../components/AddFundsModal'
+import VirtualAccountCard from '../../components/VirtualAccountCard'
 import { walletAPI } from '../../services/api'
+import { paystackService } from '../../services/paystackService'
 import { useAuthStore } from '../../store/authStore'
 
 export default function SavingsPage() {
@@ -24,7 +26,9 @@ export default function SavingsPage() {
     const { user } = useAuthStore()
     const [wallet, setWallet] = useState(null)
     const [transactions, setTransactions] = useState([])
+    const [virtualAccount, setVirtualAccount] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [loadingAccount, setLoadingAccount] = useState(true)
     const [showAddFunds, setShowAddFunds] = useState(false)
 
     // Fetch wallet and transactions
@@ -49,6 +53,23 @@ export default function SavingsPage() {
         fetchWalletData()
     }, [user?.memberId])
 
+    // Fetch virtual account
+    useEffect(() => {
+        const fetchVirtualAccount = async () => {
+            if (!user?.memberId) return
+            try {
+                setLoadingAccount(true)
+                const account = await paystackService.getVirtualAccount(user.memberId)
+                setVirtualAccount(account)
+            } catch (error) {
+                console.error('Error fetching virtual account:', error)
+            } finally {
+                setLoadingAccount(false)
+            }
+        }
+        fetchVirtualAccount()
+    }, [user?.memberId])
+
     // Refresh wallet after adding funds
     const handleFundsAdded = async () => {
         const walletData = await walletAPI.getWallet(user.memberId)
@@ -71,6 +92,9 @@ export default function SavingsPage() {
 
     return (
         <div className="p-6 lg:p-10 max-w-7xl mx-auto flex flex-col gap-8">
+            {/* Virtual Account Section */}
+            <VirtualAccountCard accountData={virtualAccount} loading={loadingAccount} />
+
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
