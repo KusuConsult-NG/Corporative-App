@@ -343,12 +343,114 @@ export const commoditiesAPI = {
         }
     },
 
+    create: async (productData) => {
+        try {
+            const product = await addDoc(collection(db, 'commodities'), {
+                ...productData,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp()
+            })
+            return { id: product.id, ...productData }
+        } catch (error) {
+            console.error('Error creating product:', error)
+            throw error
+        }
+    },
+
+    update: async (commodityId, updates) => {
+        try {
+            const commodityRef = doc(db, 'commodities', commodityId)
+            await updateDoc(commodityRef, {
+                ...updates,
+                updatedAt: serverTimestamp()
+            })
+            return { id: commodityId, ...updates }
+        } catch (error) {
+            console.error('Error updating product:', error)
+            throw error
+        }
+    },
+
+    delete: async (commodityId) => {
+        try {
+            // Check if there are any pending orders for this product
+            const ordersQuery = query(
+                collection(db, 'commodityOrders'),
+                where('productId', '==', commodityId),
+                where('status', 'in', ['pending_approval', 'approved', 'processing'])
+            )
+            const ordersSnapshot = await getDocs(ordersQuery)
+
+            if (!ordersSnapshot.empty) {
+                throw new Error('Cannot delete product with active orders')
+            }
+
+            // Delete the product
+            await deleteDoc(doc(db, 'commodities', commodityId))
+            return { id: commodityId }
+        } catch (error) {
+            console.error('Error deleting product:', error)
+            throw error
+        }
+    },
+
+    getStatistics: async () => {
+        try {
+            // Get total products
+            const productsSnapshot = await getDocs(collection(db, 'commodities'))
+            const totalProducts = productsSnapshot.size
+
+            // Get pending orders
+            const pendingOrdersQuery = query(
+                collection(db, 'commodityOrders'),
+                where('status', '==', 'pending_approval')
+            )
+            const pendingSnapshot = await getDocs(pendingOrdersQuery)
+            const pendingOrders = pendingSnapshot.size
+
+            // Get current month's sales
+            const now = new Date()
+            const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+            const allOrdersSnapshot = await getDocs(collection(db, 'commodityOrders'))
+            let monthlySales = 0
+
+            allOrdersSnapshot.docs.forEach(doc => {
+                const order = doc.data()
+                const orderDate = order.orderedAt?.toDate?.() || order.createdAt?.toDate?.()
+
+                if (orderDate && orderDate >= firstDayOfMonth) {
+                    monthlySales += order.totalAmount || 0
+                }
+            })
+
+            // Calculate low stock count
+            let lowStockCount = 0
+            productsSnapshot.docs.forEach(doc => {
+                const product = doc.data()
+                if (product.stockQuantity && product.stockQuantity < 20) {
+                    lowStockCount++
+                }
+            })
+
+            return {
+                totalProducts,
+                pendingOrders,
+                monthlySales,
+                lowStockCount
+            }
+        } catch (error) {
+            console.error('Error fetching statistics:', error)
+            throw error
+        }
+    },
+
     placeOrder: async (orderData) => {
         try {
-            const order = await addDoc(collection(db, 'commodity_orders'), {
+            const order = await addDoc(collection(db, 'commodityOrders'), {
                 ...orderData,
-                status: 'pending',
-                createdAt: serverTimestamp()
+                status: 'pending_approval',
+                orderedAt: serverTimestamp()
             })
             return { id: order.id, ...orderData }
         } catch (error) {
@@ -360,7 +462,7 @@ export const commoditiesAPI = {
     getOrders: async (memberId) => {
         try {
             const q = query(
-                collection(db, 'commodity_orders'),
+                collection(db, 'commodityOrders'),
                 where('memberId', '==', memberId)
             )
             const querySnapshot = await getDocs(q)
@@ -378,7 +480,7 @@ export const commoditiesAPI = {
 
     getAllOrders: async () => {
         try {
-            const q = query(collection(db, 'commodity_orders'))
+            const q = query(collection(db, 'commodityOrders'))
             const querySnapshot = await getDocs(q)
             const orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
             return orders.sort((a, b) => {
