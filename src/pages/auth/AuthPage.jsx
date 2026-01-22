@@ -140,7 +140,7 @@ export default function AuthPage() {
                 <div className="relative z-10 h-full flex flex-col justify-center text-white">
                     <div className="mb-8">
                         <div className="inline-flex items-center justify-center p-3 bg-white/10 backdrop-blur-md rounded-xl mb-6 border border-white/20 shadow-lg">
-                            <Building2 className="text-white" size={32} />
+                            <img src="/logo.png" alt="AWSLMCSL Logo" className="size-10 object-contain" />
                         </div>
                         <h1 className="text-3xl xl:text-4xl font-black leading-tight tracking-[-0.033em] mb-4">
                             Anchorage Welfare Savings and Loans Multipurpose Cooperative Society Limited

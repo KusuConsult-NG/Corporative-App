@@ -76,8 +76,8 @@ export default function Sidebar({ role = 'member' }) {
         <aside className="hidden lg:flex w-72 flex-col bg-surface-light dark:bg-surface-dark border-r border-slate-200 dark:border-slate-800 h-full shrink-0 transition-colors">
             {/* Logo Area */}
             <div className="p-6 flex items-center gap-3 border-b border-slate-100 dark:border-slate-800">
-                <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-lg shadow-blue-500/20">
-                    <Building2 size={24} />
+                <div className="size-10 rounded-xl bg-white/10 flex items-center justify-center shadow-lg shadow-blue-500/20 overflow-hidden">
+                    <img src="/logo.png" alt="AWSLMCSL Logo" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex flex-col">
                     <h1 className="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight">AWSLMCSL</h1>
