@@ -8,12 +8,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-comp
 
 // Initialize Firebase in the service worker
 firebase.initializeApp({
-    apiKey: "AIzaSyCgEwZHMXe9J_TfmDKrRNuFGH_IqYQXxKg",
+    apiKey: "AIzaSyBTUfg0lKz-ybpeqzKOfxHZUsvBLUEKvI4",
     authDomain: "device-streaming-c7297924.firebaseapp.com",
     projectId: "device-streaming-c7297924",
     storageBucket: "device-streaming-c7297924.firebasestorage.app",
-    messagingSenderId: "625969062662",
-    appId: "1:625969062662:web:3a8e9f0b5c8d7e6f1a2b3c"
+    messagingSenderId: "785564049496",
+    appId: "1:785564049496:web:a778b09e42d71cb18c2a2d"
 });
 
 // Retrieve Firebase Messaging instance
