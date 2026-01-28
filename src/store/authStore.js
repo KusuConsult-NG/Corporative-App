@@ -5,7 +5,8 @@ import {
     createUserWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
-    sendEmailVerification
+    sendEmailVerification,
+    sendPasswordResetEmail
 } from 'firebase/auth'
 import {
     collection,
@@ -87,7 +88,7 @@ export const useAuthStore = create(
 
                     return { success: true }
                 } catch (error) {
-                    console.error('Login error:', error)
+                    console.warn('Login failed:', error.message)
 
                     // Provide user-friendly error messages
                     let errorMessage = error.message
@@ -213,13 +214,14 @@ export const useAuthStore = create(
                     })
 
                     // Send verification email using Firebase's built-in method
-                    // This works immediately without needing external API keys
+                    // Use production URL from env variable, fallback to localhost
+                    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin
                     try {
                         await sendEmailVerification(firebaseUser, {
-                            url: `${window.location.origin}/auth?verified=true`,
+                            url: `${baseUrl}/__/auth/action?continueUrl=${encodeURIComponent(baseUrl + '/auth?verified=true')}`,
                             handleCodeInApp: false
                         })
-                        console.log('Verification email sent via Firebase')
+                        console.log('Verification email sent via Firebase to:', baseUrl)
                     } catch (emailError) {
                         console.error('Error sending verification email:', emailError)
                         // Don't fail registration if email fails
@@ -315,7 +317,7 @@ export const useAuthStore = create(
                                 set({ user: null, isAuthenticated: false })
                             }
                         } catch (error) {
-                            console.error('Error fetching user data:', error)
+                            console.warn('Error fetching user data:', error.message)
                             set({ user: null, isAuthenticated: false })
                         }
                     } else {
@@ -408,12 +410,13 @@ export const useAuthStore = create(
                     const firebaseUser = auth.currentUser || await auth.getUser(userData.userId)
 
                     if (firebaseUser) {
+                        const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin
                         try {
                             await sendEmailVerification(firebaseUser, {
-                                url: `${window.location.origin}/auth?verified=true`,
+                                url: `${baseUrl}/__/auth/action?continueUrl=${encodeURIComponent(baseUrl + '/auth?verified=true')}`,
                                 handleCodeInApp: false
                             })
-                            console.log('Verification email resent via Firebase')
+                            console.log('Verification email resent via Firebase to:', baseUrl)
                         } catch (emailError) {
                             console.error('Error resending verification email:', emailError)
                             return { success: false, error: 'Failed to resend verification email' }
@@ -523,6 +526,49 @@ export const useAuthStore = create(
                 } catch (error) {
                     console.error('Error updating profile:', error)
                     return { success: false, error: error.message }
+                }
+            },
+
+            // Password reset function
+            resetPassword: async (email) => {
+                try {
+                    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin
+                    const actionCodeSettings = {
+                        url: `${baseUrl}/__/auth/action?continueUrl=${encodeURIComponent(baseUrl + '/auth')}`,
+                        handleCodeInApp: false
+                    }
+
+                    await sendPasswordResetEmail(auth, email, actionCodeSettings)
+
+                    // Log password reset request (best effort - may fail for unauthenticated users)
+                    try {
+                        await createAuditLog({
+                            userId: email,
+                            action: AUDIT_ACTIONS.PASSWORD_RESET,
+                            resource: 'auth',
+                            details: { email },
+                            severity: AUDIT_SEVERITY.INFO
+                        })
+                    } catch (auditError) {
+                        // Silently fail audit logging for unauthenticated operations
+                        console.warn('Could not create audit log for password reset:', auditError.message)
+                    }
+
+                    return { success: true }
+                } catch (error) {
+                    console.error('Password reset error:', error)
+
+                    let errorMessage = 'Failed to send password reset email. Please try again.'
+
+                    if (error.code === 'auth/user-not-found') {
+                        errorMessage = 'No account found with this email address.'
+                    } else if (error.code === 'auth/invalid-email') {
+                        errorMessage = 'Please enter a valid email address.'
+                    } else if (error.code === 'auth/too-many-requests') {
+                        errorMessage = 'Too many requests. Please try again later.'
+                    }
+
+                    return { success: false, error: errorMessage }
                 }
             },
         }),

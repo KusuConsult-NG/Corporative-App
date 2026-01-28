@@ -16,6 +16,8 @@ import EmailVerificationPendingPage from './pages/auth/EmailVerificationPendingP
 import RegistrationFeePage from './pages/auth/RegistrationFeePage'
 import ApprovalPendingPage from './pages/auth/ApprovalPendingPage'
 import RegistrationRejectedPage from './pages/auth/RegistrationRejectedPage'
+import FirebaseActionHandler from './pages/auth/FirebaseActionHandler'
+
 
 // Member Pages - Lazy Load
 const MemberDashboard = lazy(() => import('./pages/member/MemberDashboard'))
@@ -181,6 +183,7 @@ function App() {
                 <Routes>
                     {/* Public Routes */}
                     <Route path="/auth" element={!isAuthenticated ? <AuthPage /> : <Navigate to={canAccessAdmin(user) ? '/admin/dashboard' : '/member/dashboard'} />} />
+                    <Route path="/__/auth/action" element={<FirebaseActionHandler />} />
                     <Route path="/verify-email" element={<VerifyEmailPage />} />
                     <Route path="/email-verification-pending" element={<EmailVerificationPendingPage />} />
                     <Route path="/registration-fee" element={<RegistrationFeePage />} />
@@ -189,6 +192,7 @@ function App() {
                     <Route path="/sh-clear-database-xyz" element={<ClearDBAction />} />
                     <Route path="/guarantor-approval/:token" element={<GuarantorApprovalPage />} />
                     <Route path="/diagnostic" element={<DiagnosticPage />} />
+
 
                     {/* Member Routes */}
                     <Route path="/member" element={isAuthenticated && user?.role === 'member' ? <MemberLayout /> : <Navigate to="/auth" />}>
