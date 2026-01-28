@@ -4,7 +4,8 @@ import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     signOut,
-    onAuthStateChanged
+    onAuthStateChanged,
+    sendEmailVerification
 } from 'firebase/auth'
 import {
     collection,
@@ -208,14 +209,18 @@ export const useAuthStore = create(
                         joinedAt: serverTimestamp()
                     })
 
-                    // Send verification email
-                    const { emailService } = await import('../services/emailService')
-                    const verificationLink = `${window.location.origin}/verify-email?token=${verificationToken}`
-                    await emailService.sendVerificationEmail(
-                        userData.email,
-                        `${userData.title} ${userData.firstName} ${userData.lastName}`,
-                        verificationLink
-                    )
+                    // Send verification email using Firebase's built-in method
+                    // This works immediately without needing external API keys
+                    try {
+                        await sendEmailVerification(firebaseUser, {
+                            url: `${window.location.origin}/auth?verified=true`,
+                            handleCodeInApp: false
+                        })
+                        console.log('Verification email sent via Firebase')
+                    } catch (emailError) {
+                        console.error('Error sending verification email:', emailError)
+                        // Don't fail registration if email fails
+                    }
 
                     // Sign out immediately - don't auto-login
                     await signOut(auth)
@@ -286,6 +291,16 @@ export const useAuthStore = create(
                             if (!querySnapshot.empty) {
                                 const userDoc = querySnapshot.docs[0]
                                 const userData = { id: userDoc.id, ...userDoc.data() }
+
+                                // Sync emailVerified status from Firebase Auth to Firestore
+                                if (firebaseUser.emailVerified && !userData.emailVerified) {
+                                    await updateDoc(doc(db, 'users', userDoc.id), {
+                                        emailVerified: true,
+                                        emailVerificationToken: null,
+                                        emailVerificationExpiry: null
+                                    })
+                                    userData.emailVerified = true
+                                }
 
                                 set({
                                     user: userData,
@@ -385,14 +400,22 @@ export const useAuthStore = create(
                         emailVerificationExpiry: verificationExpiry
                     })
 
-                    // Send new verification email
-                    const { emailService } = await import('../services/emailService')
-                    const verificationLink = `${window.location.origin}/verify-email?token=${verificationToken}`
-                    await emailService.sendVerificationEmail(
-                        email,
-                        userData.name,
-                        verificationLink
-                    )
+                    // Resend verification email using Firebase's built-in method
+                    // Get the Firebase Auth user
+                    const firebaseUser = auth.currentUser || await auth.getUser(userData.userId)
+
+                    if (firebaseUser) {
+                        try {
+                            await sendEmailVerification(firebaseUser, {
+                                url: `${window.location.origin}/auth?verified=true`,
+                                handleCodeInApp: false
+                            })
+                            console.log('Verification email resent via Firebase')
+                        } catch (emailError) {
+                            console.error('Error resending verification email:', emailError)
+                            return { success: false, error: 'Failed to resend verification email' }
+                        }
+                    }
 
                     return { success: true }
                 } catch (error) {
