@@ -14,6 +14,7 @@ import {
     getDocs,
     addDoc,
     doc,
+    setDoc,
     getDoc,
     updateDoc,
     serverTimestamp
@@ -157,7 +158,9 @@ export const useAuthStore = create(
                     verificationExpiry.setHours(verificationExpiry.getHours() + 24) // 24 hours
 
                     // Create user document in Firestore with new fields
-                    await addDoc(collection(db, 'users'), {
+                    // CRITICAL: Use setDoc with Firebase UID as document ID
+                    // This matches Firestore security rules: allow create: if request.auth.uid == userId
+                    await setDoc(doc(db, 'users', firebaseUser.uid), {
                         userId: firebaseUser.uid,
                         memberId: memberId,
                         title: userData.title,
