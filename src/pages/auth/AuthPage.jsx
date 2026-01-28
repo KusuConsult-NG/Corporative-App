@@ -329,13 +329,12 @@ export default function AuthPage() {
                             </div>
 
                             <Input
-                                label="Middle Name"
+                                label="Middle Name (Optional)"
                                 type="text"
                                 icon={User}
-                                placeholder="Michael"
+                                placeholder="Michael (optional)"
                                 value={registerData.middleName}
                                 onChange={(e) => setRegisterData({ ...registerData, middleName: e.target.value })}
-                                required
                             />
 
                             <Input
