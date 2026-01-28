@@ -2,14 +2,18 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
+// NOTE: Firebase config is loaded from environment variables in production
+// This service worker will be configured at build time via Vite
+// NEVER commit real API keys here
+
 // Initialize Firebase in the service worker
 firebase.initializeApp({
-    apiKey: "AIzaSyCgEwZHMXe9J_TfmDKrRNuFGH_IqYQXxKg",
-    authDomain: "awslmcsl-app.firebaseapp.com",
-    projectId: "awslmcsl-app",
-    storageBucket: "awslmcsl-app.firebasestorage.app",
-    messagingSenderId: "625969062662",
-    appId: "1:625969062662:web:3a8e9f0b5c8d7e6f1a2b3c"
+    apiKey: "{{VITE_FIREBASE_API_KEY}}",
+    authDomain: "{{VITE_FIREBASE_AUTH_DOMAIN}}",
+    projectId: "{{VITE_FIREBASE_PROJECT_ID}}",
+    storageBucket: "{{VITE_FIREBASE_STORAGE_BUCKET}}",
+    messagingSenderId: "{{VITE_FIREBASE_MESSAGING_SENDER_ID}}",
+    appId: "{{VITE_FIREBASE_APP_ID}}"
 });
 
 // Retrieve Firebase Messaging instance
