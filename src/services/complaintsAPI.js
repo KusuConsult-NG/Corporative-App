@@ -2,19 +2,40 @@ import { collection, query, where, addDoc, getDocs, doc, updateDoc, serverTimest
 import { db } from '../lib/firebase'
 
 /**
+ * Auto-detect priority based on keywords in complaint
+ */
+function detectPriority(subject, message) {
+    const urgentKeywords = ['urgent', 'emergency', 'critical', 'fraud', 'hack', 'hacked', 'stolen', 'scam']
+    const highKeywords = ['important', 'issue', 'problem', 'error', 'bug', 'cannot', 'can\'t', 'unable', 'not working']
+
+    const text = `${subject || ''} ${message || ''}`.toLowerCase()
+
+    if (urgentKeywords.some(kw => text.includes(kw))) return 'urgent'
+    if (highKeywords.some(kw => text.includes(kw))) return 'high'
+    return 'normal'
+}
+
+/**
  * Complaint Management API
  */
 export const complaintsAPI = {
     // Create a new complaint
     create: async (complaintData) => {
         try {
+            // Auto-detect priority if not provided
+            const priority = complaintData.priority || detectPriority(
+                complaintData.subject,
+                complaintData.message
+            )
+
             const docRef = await addDoc(collection(db, 'complaints'), {
                 ...complaintData,
+                priority,
                 status: 'open',
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
             })
-            return { id: docRef.id, ...complaintData, status: 'open' }
+            return { id: docRef.id, ...complaintData, priority, status: 'open' }
         } catch (error) {
             console.error('Error creating complaint:', error)
             throw error

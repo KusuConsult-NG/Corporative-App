@@ -125,3 +125,131 @@ export const exportToPDF = (reportData, filename = 'report.pdf') => {
     printWindow.document.write(html)
     printWindow.document.close()
 }
+
+// =============================================================================
+// Cloud Function-based exports (Production-ready)
+// =============================================================================
+
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import { app } from '../lib/firebase'
+
+const functions = getFunctions(app)
+
+/**
+ * Download a base64 file
+ */
+function downloadBase64File(base64Data, filename, mimeType) {
+    const byteCharacters = atob(base64Data)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i)
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    const blob = new Blob([byteArray], { type: mimeType })
+
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+
+    link.parentNode.removeChild(link)
+    window.URL.revokeObjectURL(url)
+}
+
+/**
+ * Export loans to PDF using Cloud Function
+ */
+export async function exportLoansToPDF(userId = null, filters = {}) {
+    try {
+        const exportLoansPDF = httpsCallable(functions, 'exportLoansPDF')
+        const result = await exportLoansPDF({ userId, filters })
+
+        if (result.data.success) {
+            downloadBase64File(
+                result.data.data,
+                result.data.filename,
+                result.data.mimeType
+            )
+            return { success: true }
+        } else {
+            throw new Error('Export failed')
+        }
+    } catch (error) {
+        console.error('Error exporting loans to PDF:', error)
+        throw error
+    }
+}
+
+/**
+ * Export loans to Excel using Cloud Function
+ */
+export async function exportLoansToExcel(userId = null, filters = {}) {
+    try {
+        const exportLoansExcel = httpsCallable(functions, 'exportLoansExcel')
+        const result = await exportLoansExcel({ userId, filters })
+
+        if (result.data.success) {
+            downloadBase64File(
+                result.data.data,
+                result.data.filename,
+                result.data.mimeType
+            )
+            return { success: true }
+        } else {
+            throw new Error('Export failed')
+        }
+    } catch (error) {
+        console.error('Error exporting loans to Excel:', error)
+        throw error
+    }
+}
+
+/**
+ * Export members to Excel (Admin only)
+ */
+export async function exportMembersToExcel() {
+    try {
+        const exportMembersExcel = httpsCallable(functions, 'exportMembersExcel')
+        const result = await exportMembersExcel({})
+
+        if (result.data.success) {
+            downloadBase64File(
+                result.data.data,
+                result.data.filename,
+                result.data.mimeType
+            )
+            return { success: true }
+        } else {
+            throw new Error('Export failed')
+        }
+    } catch (error) {
+        console.error('Error exporting members to Excel:', error)
+        throw error
+    }
+}
+
+/**
+ * Export savings statement to PDF
+ */
+export async function exportSavingsToPDF(userId) {
+    try {
+        const exportSavingsPDF = httpsCallable(functions, 'exportSavingsPDF')
+        const result = await exportSavingsPDF({ userId })
+
+        if (result.data.success) {
+            downloadBase64File(
+                result.data.data,
+                result.data.filename,
+                result.data.mimeType
+            )
+            return { success: true }
+        } else {
+            throw new Error('Export failed')
+        }
+    } catch (error) {
+        console.error('Error exporting savings to PDF:', error)
+        throw error
+    }
+}

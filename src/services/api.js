@@ -178,6 +178,98 @@ export const loansAPI = {
 
 // Guarantor API
 export const guarantorAPI = {
+    /**
+     * Send guarantor approval email (NEW MODE - uses Cloud Function)
+     */
+    sendGuarantorApprovalEmail: async (loanApplicationId, guarantorEmail, borrowerName, loanAmount, loanPurpose) => {
+        try {
+            const { getFunctions, httpsCallable } = await import('firebase/functions')
+            const { app } = await import('../lib/firebase')
+
+            const functions = getFunctions(app)
+            const sendEmail = httpsCallable(functions, 'sendGuarantorApprovalEmail')
+
+            const result = await sendEmail({
+                loanApplicationId,
+                guarantorEmail,
+                borrowerName,
+                loanAmount,
+                loanPurpose
+            })
+
+            return result.data
+        } catch (error) {
+            console.error('Error sending guarantor email:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Get guarantor approval details by token (PUBLIC - no auth required)
+     */
+    getGuarantorApprovalByToken: async (token) => {
+        try {
+            const { getFunctions, httpsCallable } = await import('firebase/functions')
+            const { app } = await import('../lib/firebase')
+
+            const functions = getFunctions(app)
+            const getApproval = httpsCallable(functions, 'getGuarantorApprovalByToken')
+
+            const result = await getApproval({ token })
+            return result.data
+        } catch (error) {
+            console.error('Error getting guarantor approval:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Approve guarantor request (PUBLIC - no auth required)
+     */
+    updateGuarantorStatus: async (token, status, reason = null) => {
+        try {
+            const { getFunctions, httpsCallable } = await import('firebase/functions')
+            const { app } = await import('../lib/firebase')
+
+            const functions = getFunctions(app)
+
+            if (status === 'approved') {
+                const approveRequest = httpsCallable(functions, 'approveGuarantorRequest')
+                const result = await approveRequest({ token })
+                return result.data
+            } else if (status === 'rejected') {
+                const rejectRequest = httpsCallable(functions, 'rejectGuarantorRequest')
+                const result = await rejectRequest({ token, reason })
+                return result.data
+            } else {
+                throw new Error(`Invalid status: ${status}`)
+            }
+        } catch (error) {
+            console.error('Error updating guarantor status:', error)
+            throw error
+        }
+    },
+
+    /**
+     * Resend guarantor approval email
+     */
+    resendGuarantorApprovalEmail: async (loanApplicationId) => {
+        try {
+            const { getFunctions, httpsCallable } = await import('firebase/functions')
+            const { app } = await import('../lib/firebase')
+
+            const functions = getFunctions(app)
+            const resendEmail = httpsCallable(functions, 'resendGuarantorApprovalEmail')
+
+            const result = await resendEmail({ loanApplicationId })
+            return result.data
+        } catch (error) {
+            console.error('Error resending guarantor email:', error)
+            throw error
+        }
+    },
+
+    // LEGACY METHODS (kept for backward compatibility, will be removed later)
     createGuarantorApproval: async (approvalData) => {
         try {
             // Generate unique token
@@ -247,51 +339,6 @@ export const guarantorAPI = {
             })
         } catch (error) {
             console.error('Error fetching member guarantor requests:', error)
-            throw error
-        }
-    },
-
-    getGuarantorApprovalByToken: async (token) => {
-        try {
-            const q = query(
-                collection(db, 'guarantor_approvals'),
-                where('approvalToken', '==', token),
-                limit(1)
-            )
-            const querySnapshot = await getDocs(q)
-            if (querySnapshot.empty) return null
-
-            const docSnap = querySnapshot.docs[0]
-            return { id: docSnap.id, ...docSnap.data() }
-        } catch (error) {
-            console.error('Error fetching guarantor approval by token:', error)
-            throw error
-        }
-    },
-
-    updateGuarantorStatus: async (approvalId, status, reason = null) => {
-        try {
-            const approvalRef = doc(db, 'guarantor_approvals', approvalId)
-            const updateData = {
-                status,
-                ...(status === 'approved' && { approvedAt: serverTimestamp() }),
-                ...(reason && { rejectionReason: reason })
-            }
-
-            await updateDoc(approvalRef, updateData)
-
-            // Get the approval to get loanId
-            const approvalDoc = await getDoc(approvalRef)
-            const approval = approvalDoc.data()
-
-            // Update loan status if all guarantors have approved
-            if (status === 'approved' && approval.loanId) {
-                await guarantorAPI.checkAndUpdateLoanStatus(approval.loanId)
-            }
-
-            return { id: approvalId, ...updateData }
-        } catch (error) {
-            console.error('Error updating guarantor status:', error)
             throw error
         }
     },

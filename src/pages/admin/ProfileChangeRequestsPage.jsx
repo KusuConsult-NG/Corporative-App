@@ -7,6 +7,8 @@ import { db } from '../../lib/firebase'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
+import SkeletonLoader from '../../components/ui/SkeletonLoader'
+import EmptyState from '../../components/ui/EmptyState'
 
 export default function ProfileChangeRequestsPage() {
     const [requests, setRequests] = useState([])
@@ -109,8 +111,8 @@ export default function ProfileChangeRequestsPage() {
                                 key={tab}
                                 onClick={() => setFilter(tab)}
                                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize whitespace-nowrap ${filter === tab
-                                        ? 'bg-primary text-white shadow-lg shadow-primary/30'
-                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/30'
+                                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                                     }`}
                             >
                                 {tab}
@@ -129,80 +131,96 @@ export default function ProfileChangeRequestsPage() {
             </Card>
 
             {/* Requests Table */}
-            <Card className="overflow-hidden p-0">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
-                            <tr>
-                                <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Member</th>
-                                <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Field</th>
-                                <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Current</th>
-                                <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Requested</th>
-                                <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Date</th>
-                                <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Status</th>
-                                <th className="px-6 py-4 text-right font-semibold text-slate-600 dark:text-slate-400">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                            {filteredRequests.map((request) => (
-                                <tr key={request.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                                    <td className="px-6 py-4">
-                                        <div>
-                                            <p className="font-semibold text-slate-900 dark:text-white">
-                                                {request.memberName}
-                                            </p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                {request.memberId}
-                                            </p>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-white capitalize">
-                                        {request.fieldName}
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                                        {request.currentValue}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className="font-medium text-primary">
-                                            {request.requestedValue}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
-                                        {request.createdAt ? formatDate(request.createdAt.toDate()) : 'N/A'}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${getStatusColor(request.status)}`}>
-                                            <span className="capitalize">{request.status}</span>
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        {request.status === 'pending' ? (
-                                            <div className="flex justify-end gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    className="h-8 px-3 bg-green-500 hover:bg-green-600"
-                                                    onClick={() => handleAction(request, 'approved')}
-                                                >
-                                                    <CheckCircle size={16} />
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    className="h-8 px-3 bg-red-500 hover:bg-red-600"
-                                                    onClick={() => handleAction(request, 'rejected')}
-                                                >
-                                                    <XCircle size={16} />
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <span className="text-xs text-slate-500">Processed</span>
-                                        )}
-                                    </td>
+            {loading ? (
+                <SkeletonLoader count={5} height="h-16" />
+            ) : filteredRequests.length === 0 ? (
+                <EmptyState
+                    icon={User}
+                    title="No Profile Change Requests"
+                    description={
+                        searchQuery
+                            ? `No requests found matching "${searchQuery}"`
+                            : filter === 'all'
+                                ? "No profile change requests submitted yet."
+                                : `No ${filter} requests found.`
+                    }
+                />
+            ) : (
+                <Card className="overflow-hidden p-0">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+                                <tr>
+                                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Member</th>
+                                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Field</th>
+                                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Current</th>
+                                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Requested</th>
+                                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Date</th>
+                                    <th className="px-6 py-4 text-left font-semibold text-slate-600 dark:text-slate-400">Status</th>
+                                    <th className="px-6 py-4 text-right font-semibold text-slate-600 dark:text-slate-400">Actions</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </Card>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                                {filteredRequests.map((request) => (
+                                    <tr key={request.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                        <td className="px-6 py-4">
+                                            <div>
+                                                <p className="font-semibold text-slate-900 dark:text-white">
+                                                    {request.memberName}
+                                                </p>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                    {request.memberId}
+                                                </p>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white capitalize">
+                                            {request.fieldName}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
+                                            {request.currentValue}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="font-medium text-primary">
+                                                {request.requestedValue}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-400">
+                                            {request.createdAt ? formatDate(request.createdAt.toDate()) : 'N/A'}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${getStatusColor(request.status)}`}>
+                                                <span className="capitalize">{request.status}</span>
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            {request.status === 'pending' ? (
+                                                <div className="flex justify-end gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-8 px-3 bg-green-500 hover:bg-green-600"
+                                                        onClick={() => handleAction(request, 'approved')}
+                                                    >
+                                                        <CheckCircle size={16} />
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-8 px-3 bg-red-500 hover:bg-red-600"
+                                                        onClick={() => handleAction(request, 'rejected')}
+                                                    >
+                                                        <XCircle size={16} />
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-slate-500">Processed</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </Card>
+            )}
 
             {/* Action Modal */}
             {showModal && (

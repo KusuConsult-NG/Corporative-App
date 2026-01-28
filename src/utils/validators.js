@@ -1,22 +1,19 @@
 import { z } from 'zod'
 
-// Email validation for Unijos domain
-export const unijosEmailSchema = z
+// Email validation - accepts any valid email
+export const emailSchema = z
     .string()
     .email('Invalid email address')
-    .refine((email) => email.endsWith('@unijos.edu.ng'), {
-        message: 'Email must be a valid @unijos.edu.ng address',
-    })
 
 // Login schema
 export const loginSchema = z.object({
-    email: unijosEmailSchema,
+    email: emailSchema,
     password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
 // Registration schema
 export const registrationSchema = z.object({
-    email: unijosEmailSchema,
+    email: emailSchema,
     password: z
         .string()
         .min(8, 'Password must be at least 8 characters')

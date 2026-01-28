@@ -59,10 +59,11 @@ export default function GuarantorApprovalPage() {
 
         setSubmitting(true)
         try {
-            await guarantorAPI.updateGuarantorStatus(approval.$id, 'approved')
+            await guarantorAPI.updateGuarantorStatus(token, 'approved')
             alert('You have successfully approved the guarantor request!')
             navigate('/')
         } catch (err) {
+            console.error(err)
             alert('Failed to approve request. Please try again.')
         } finally {
             setSubmitting(false)
@@ -77,10 +78,11 @@ export default function GuarantorApprovalPage() {
 
         setSubmitting(true)
         try {
-            await guarantorAPI.updateGuarantorStatus(approval.$id, 'rejected', rejectionReason)
+            await guarantorAPI.updateGuarantorStatus(token, 'rejected', rejectionReason)
             alert('You have declined the guarantor request')
             navigate('/')
         } catch (err) {
+            console.error(err)
             alert('Failed to reject request. Please try again.')
         } finally {
             setSubmitting(false)

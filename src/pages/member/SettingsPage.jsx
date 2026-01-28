@@ -3,6 +3,7 @@ import { Bell, CreditCard, Moon, Sun, Lock, Globe, Mail, Smartphone } from 'luci
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
+import ChangePasswordModal from '../../components/ui/ChangePasswordModal'
 import { useThemeStore } from '../../store/themeStore'
 import { useToast } from '../../context/ToastContext'
 
@@ -18,6 +19,7 @@ export default function SettingsPage() {
     })
     const [monthlyContribution, setMonthlyContribution] = useState(50000)
     const [automaticDeduction, setAutomaticDeduction] = useState(true)
+    const [showPasswordModal, setShowPasswordModal] = useState(false)
 
     const handleSaveSettings = () => {
         // In a real app, this would save to backend
@@ -25,7 +27,7 @@ export default function SettingsPage() {
     }
 
     const handleChangePassword = () => {
-        toast.info('Password change functionality will be available soon.')
+        setShowPasswordModal(true)
     }
 
     return (
@@ -265,6 +267,12 @@ export default function SettingsPage() {
                     Save Changes
                 </Button>
             </div>
+
+            {/* Password Change Modal */}
+            <ChangePasswordModal
+                isOpen={showPasswordModal}
+                onClose={() => setShowPasswordModal(false)}
+            />
         </div>
     )
 }

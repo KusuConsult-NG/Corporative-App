@@ -45,15 +45,32 @@ export default function NotificationsPage() {
     }
 
     const handleMarkAllAsRead = async () => {
-        const count = await markAllAsRead(user.userId)
-        if (count > 0) {
-            alert(`Marked ${count} notification${count > 1 ? 's' : ''} as read`)
-        }
+        await markAllAsRead(user.userId)
+        // Notifications auto-update via subscription
     }
 
     const handleDelete = async (notificationId) => {
         if (window.confirm('Delete this notification?')) {
-            await deleteNotification(notificationId)
+            try {
+                // Optimistic UI update - remove from local state immediately
+                setNotifications(prev => prev.filter(n => n.id !== notificationId))
+
+                // Delete from Firestore
+                const success = await deleteNotification(notificationId)
+
+                if (!success) {
+                    // If deletion failed, show error and refetch
+                    alert('Failed to delete notification')
+                    const updatedNotifs = await getUserNotifications(user.userId)
+                    setNotifications(updatedNotifs)
+                }
+            } catch (error) {
+                console.error('Error deleting notification:', error)
+                alert('Failed to delete notification')
+                // Refetch on error
+                const updatedNotifs = await getUserNotifications(user.userId)
+                setNotifications(updatedNotifs)
+            }
         }
     }
 

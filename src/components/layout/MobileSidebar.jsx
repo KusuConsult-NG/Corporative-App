@@ -15,7 +15,8 @@ import {
     FileText,
     Shield,
     AlertCircle,
-    Calendar
+    Calendar,
+    Bell
 } from 'lucide-react'
 
 const memberNavItems = [
@@ -24,7 +25,7 @@ const memberNavItems = [
     { name: 'Savings', path: '/member/savings', icon: PiggyBank },
     { name: 'Loans', path: '/member/loans', icon: CreditCard },
     { name: 'Commodities', path: '/member/commodities', icon: ShoppingCart },
-    { name: 'Messages', path: '/member/messages', icon: MessageSquare },
+    { name: 'Notifications', path: '/member/notifications', icon: Bell },
     { name: 'Submit Report', path: '/member/submit-report', icon: AlertCircle },
 ]
 

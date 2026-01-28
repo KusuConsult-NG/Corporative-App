@@ -7,7 +7,7 @@ import { formatCurrency } from '../utils/formatters'
 import { walletAPI } from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import { useToast } from '../context/ToastContext'
-import { BANK_DETAILS } from '../utils/constants'
+import { BANK_DETAILS, TRANSACTION_LIMITS } from '../utils/constants'
 
 const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY
 
@@ -83,13 +83,29 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
 
     // Handle card payment
     const handleCardPayment = () => {
-        if (!amount || Number(amount) <= 0) {
+        // Validate amount exists
+        if (!amount || amount.trim() === '') {
+            toast.error('Please enter an amount')
+            return
+        }
+
+        const numAmount = Number(amount)
+
+        // Validate amount is a number
+        if (isNaN(numAmount) || numAmount <= 0) {
             toast.error('Please enter a valid amount')
             return
         }
 
-        if (Number(amount) < 100) {
-            toast.error('Minimum amount is ₦100')
+        // Validate minimum
+        if (numAmount < TRANSACTION_LIMITS.minDeposit) {
+            toast.error(`Minimum deposit is ${formatCurrency(TRANSACTION_LIMITS.minDeposit)}`)
+            return
+        }
+
+        // Validate maximum
+        if (numAmount > TRANSACTION_LIMITS.maxDeposit) {
+            toast.error(`Maximum deposit is ${formatCurrency(TRANSACTION_LIMITS.maxDeposit)}`)
             return
         }
 
@@ -99,8 +115,29 @@ export default function AddFundsModal({ isOpen, onClose, onSuccess }) {
 
     // Handle bank transfer
     const handleBankTransfer = async () => {
-        if (!amount || Number(amount) <= 0) {
+        // Validate amount exists
+        if (!amount || amount.trim() === '') {
+            toast.error('Please enter an amount')
+            return
+        }
+
+        const numAmount = Number(amount)
+
+        // Validate amount is a number
+        if (isNaN(numAmount) || numAmount <= 0) {
             toast.error('Please enter a valid amount')
+            return
+        }
+
+        // Validate minimum
+        if (numAmount < TRANSACTION_LIMITS.minDeposit) {
+            toast.error(`Minimum deposit is ${formatCurrency(TRANSACTION_LIMITS.minDeposit)}`)
+            return
+        }
+
+        // Validate maximum
+        if (numAmount > TRANSACTION_LIMITS.maxDeposit) {
+            toast.error(`Maximum deposit is ${formatCurrency(TRANSACTION_LIMITS.maxDeposit)}`)
             return
         }
 

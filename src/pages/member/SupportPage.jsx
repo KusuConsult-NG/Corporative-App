@@ -3,6 +3,8 @@ import { Mail, Phone, Clock, MessageSquare, Send, ChevronDown, ChevronUp } from 
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
+import ByeLawModal from '../../components/modals/ByeLawModal'
+import ContactOfficeModal from '../../components/modals/ContactOfficeModal'
 
 const FAQ_ITEMS = [
     {
@@ -33,16 +35,44 @@ const FAQ_ITEMS = [
 
 export default function SupportPage() {
     const [expandedFaq, setExpandedFaq] = useState(null)
+    const [byeLawModalOpen, setByeLawModalOpen] = useState(false)
+    const [contactOfficeModalOpen, setContactOfficeModalOpen] = useState(false)
+    const [submitting, setSubmitting] = useState(false)
     const [ticketForm, setTicketForm] = useState({
         subject: '',
         category: 'general',
-        message: ''
+        message: '',
+        priority: 'medium'
     })
 
-    const handleSubmitTicket = (e) => {
+    const handleSubmitTicket = async (e) => {
         e.preventDefault()
-        alert('Support ticket submitted successfully! We will get back to you within 24 hours.')
-        setTicketForm({ subject: '', category: 'general', message: '' })
+        setSubmitting(true)
+
+        try {
+            // Import Cloud Functions
+            const { functions } = await import('../../lib/firebase')
+            const { httpsCallable } = await import('firebase/functions')
+
+            // Call Cloud Function
+            const sendTicket = httpsCallable(functions, 'sendSupportTicketEmail')
+            const result = await sendTicket({
+                subject: ticketForm.subject,
+                message: ticketForm.message,
+                category: ticketForm.category,
+                priority: ticketForm.priority
+            })
+
+            if (result.data.success) {
+                alert(result.data.message)
+                setTicketForm({ subject: '', category: 'general', message: '', priority: 'medium' })
+            }
+        } catch (error) {
+            console.error('Error submitting support ticket:', error)
+            alert('Failed to submit ticket. Please try again or contact us directly.')
+        } finally {
+            setSubmitting(false)
+        }
     }
 
     const toggleFaq = (index) => {
@@ -69,7 +99,8 @@ export default function SupportPage() {
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
                         Call us directly for urgent issues
                     </p>
-                    <p className="font-semibold text-primary">+234 803 123 4567</p>
+                    <p className="font-semibold text-primary">08065810868</p>
+                    <p className="text-sm text-primary mt-1">08136905553</p>
                     <p className="text-xs text-slate-400 mt-1">Mon-Fri, 8AM - 5PM</p>
                 </Card>
 
@@ -81,7 +112,7 @@ export default function SupportPage() {
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
                         Send us an email anytime
                     </p>
-                    <p className="font-semibold text-primary">support@awslmcsl.org</p>
+                    <p className="font-semibold text-primary">support@anchoragecs.com</p>
                     <p className="text-xs text-slate-400 mt-1">Response within 24 hours</p>
                 </Card>
 
@@ -146,6 +177,21 @@ export default function SupportPage() {
 
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                            Priority
+                        </label>
+                        <select
+                            value={ticketForm.priority}
+                            onChange={(e) => setTicketForm({ ...ticketForm, priority: e.target.value })}
+                            className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                        >
+                            <option value="low">Low - General question</option>
+                            <option value="medium">Medium - Standard support</option>
+                            <option value="high">High - Urgent issue</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                             Message
                         </label>
                         <textarea
@@ -158,9 +204,9 @@ export default function SupportPage() {
                         />
                     </div>
 
-                    <Button type="submit" className="w-full">
+                    <Button type="submit" className="w-full" disabled={submitting}>
                         <Send size={20} />
-                        Submit Ticket
+                        {submitting ? 'Submitting...' : 'Submit Ticket'}
                     </Button>
                 </form>
             </Card>
@@ -204,15 +250,21 @@ export default function SupportPage() {
                         Check out our complete documentation or contact the cooperative office directly
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                        <Button variant="outline">
+                        <Button variant="outline" onClick={() => setByeLawModalOpen(true)}>
                             View Documentation
                         </Button>
-                        <Button>
+                        <Button onClick={() => setContactOfficeModalOpen(true)}>
                             Contact Office
                         </Button>
                     </div>
                 </div>
             </Card>
+
+            {/* Bye-Law Modal */}
+            <ByeLawModal isOpen={byeLawModalOpen} onClose={() => setByeLawModalOpen(false)} />
+
+            {/* Contact Office Modal */}
+            <ContactOfficeModal isOpen={contactOfficeModalOpen} onClose={() => setContactOfficeModalOpen(false)} />
         </div>
     )
 }

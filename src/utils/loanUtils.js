@@ -320,23 +320,32 @@ export const calculateNewLoanRepayment = (amount, loanType, duration) => {
 
     switch (loanType) {
         case 'swift_relief':
-            interestRate = 5
-            interestAmount = amount * 0.05 // 5% flat
+            // Swift Relief: 6% for exactly 3 months
+            if (duration !== 3) {
+                throw new Error('Swift Relief loans must be exactly 3 months')
+            }
+            interestRate = 6
+            interestAmount = amount * 0.06 // 6% flat for 3 months
             break
 
         case 'advancement':
-            interestRate = 10
-            interestAmount = amount * 0.10 // 10% flat
+            // Advancement Loan: 12% for exactly 6 months
+            if (duration !== 6) {
+                throw new Error('Advancement loans must be exactly 6 months')
+            }
+            interestRate = 12
+            interestAmount = amount * 0.12 // 12% flat for 6 months
             break
 
         case 'progress_plus':
-            interestRate = 15
+            // Progress Plus: 18% per annum
+            interestRate = 18
             const years = duration / 12
-            interestAmount = amount * 0.15 * years // 15% per annum
+            interestAmount = amount * 0.18 * years // 18% per annum
             break
 
         default:
-            break
+            throw new Error('Invalid loan type')
     }
 
     const totalRepayment = amount + interestAmount

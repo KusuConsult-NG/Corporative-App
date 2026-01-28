@@ -92,6 +92,43 @@ export default function SavingsPage() {
 
     return (
         <div className="p-6 lg:p-10 max-w-7xl mx-auto flex flex-col gap-8">
+            {/* Virtual Account Activation Banner (if not activated) */}
+            {!virtualAccount && !loadingAccount && (
+                <Card className="bg-gradient-to-r from-primary/10 to-purple-500/10 border-primary/30">
+                    <div className="p-6 flex items-start gap-4">
+                        <div className="size-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                            <Wallet className="text-primary" size={24} />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-1">
+                                Get Your Virtual Account
+                            </h3>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                                Receive deposits instantly with a dedicated Nigerian bank account.
+                                No charges, instant deposits, and CBN-compliant.
+                            </p>
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-xs font-semibold text-green-700 dark:text-green-400">
+                                    ✓ Instant Deposits
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-100 dark:bg-blue-900/30 text-xs font-semibold text-blue-700 dark:text-blue-400">
+                                    ✓ No Charges
+                                </span>
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-purple-100 dark:bg-purple-900/30 text-xs font-semibold text-purple-700 dark:text-purple-400">
+                                    ✓ CBN-Compliant
+                                </span>
+                            </div>
+                            <Button
+                                onClick={() => navigate('/member/wallet-onboarding')}
+                                className="bg-primary hover:bg-primary/90"
+                            >
+                                Activate Virtual Account →
+                            </Button>
+                        </div>
+                    </div>
+                </Card>
+            )}
+
             {/* Virtual Account Section */}
             <VirtualAccountCard accountData={virtualAccount} loading={loadingAccount} />
 

@@ -6,6 +6,9 @@ const crypto = require('crypto');
 admin.initializeApp();
 const db = admin.firestore();
 
+// Import loan validation function
+const { validateLoanEligibility } = require('./validateLoan');
+
 // Paystack configuration
 const PAYSTACK_SECRET_KEY = functions.config().paystack?.secret_key || process.env.PAYSTACK_SECRET_KEY;
 const PAYSTACK_API_URL = 'https://api.paystack.co';
@@ -58,6 +61,20 @@ exports.createVirtualAccount = functions.https.onCall(async (data, context) => {
     }
 
     try {
+        // FIX-004: Verify user owns this memberId
+        const userDoc = await db.collection('users').doc(context.auth.uid).get();
+        if (!userDoc.exists) {
+            throw new functions.https.HttpsError('not-found', 'User not found');
+        }
+
+        const userData = userDoc.data();
+        if (userData.memberId !== memberId) {
+            throw new functions.https.HttpsError(
+                'permission-denied',
+                'You can only create virtual accounts for yourself'
+            );
+        }
+
         // Check if virtual account already exists
         const existingAccount = await db.collection('virtual_accounts')
             .where('memberId', '==', memberId)
@@ -263,6 +280,23 @@ exports.getVirtualAccount = functions.https.onCall(async (data, context) => {
     }
 
     try {
+        // FIX-002: Check user ownership
+        const userDoc = await db.collection('users').doc(context.auth.uid).get();
+        if (!userDoc.exists) {
+            throw new functions.https.HttpsError('not-found', 'User not found');
+        }
+
+        const userData = userDoc.data();
+        const userRole = context.auth.token.role || 'member';
+
+        // Only allow if user owns the memberId OR is admin
+        if (userData.memberId !== memberId && !['admin', 'super_admin'].includes(userRole)) {
+            throw new functions.https.HttpsError(
+                'permission-denied',
+                'You can only view your own virtual account'
+            );
+        }
+
         const accountSnapshot = await db.collection('virtual_accounts')
             .where('memberId', '==', memberId)
             .limit(1)
@@ -281,3 +315,161 @@ exports.getVirtualAccount = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('internal', error.message);
     }
 });
+
+// Export loan validation function
+exports.validateLoanEligibility = validateLoanEligibility;
+
+// Import and export monthly deductions function
+const { processMonthlyDeductions } = require('./monthlyDeductions');
+exports.processMonthlyDeductions = processMonthlyDeductions;
+
+// Import and export notification functions
+const notifications = require('./sendNotifications');
+exports.onLoanApproved = notifications.onLoanApproved;
+exports.onGuarantorRequestCreated = notifications.onGuarantorRequestCreated;
+exports.onCommodityOrderStatusChange = notifications.onCommodityOrderStatusChange;
+exports.onSavingsWithdrawalApproved = notifications.onSavingsWithdrawalApproved;
+exports.onProfileChangeRequestCreated = notifications.onProfileChangeRequestCreated;
+exports.onProfileChangeRequestProcessed = notifications.onProfileChangeRequestProcessed;
+exports.onComplaintCreated = notifications.onComplaintCreated;
+exports.onComplaintResponded = notifications.onComplaintResponded;
+exports.sendPaymentReminders = notifications.sendPaymentReminders;
+
+// Import and export escalation function
+const escalation = require('./escalateStaleComplaints');
+exports.escalateStaleComplaints = escalation.escalateStaleComplaints;
+
+// Import and export export service functions
+// Export service (temporarily disabled - requires Node 20 compatible PDF library)
+// const exportService = require('./exportService');
+// exports.exportLoansPDF = exportService.exportLoansPDF;
+// exports.exportLoansExcel = exportService.exportLoansExcel;
+// exports.exportMembersExcel = exportService.exportMembersExcel;
+// exports.exportSavingsPDF = exportService.exportSavingsPDF;
+
+
+// Import and export 2FA service functions
+const twoFactorService = require('./twoFactorService');
+exports.setup2FA = twoFactorService.setup2FA;
+exports.enable2FA = twoFactorService.enable2FA;
+exports.verify2FA = twoFactorService.verify2FA;
+exports.disable2FA = twoFactorService.disable2FA;
+exports.regenerateBackupCodes = twoFactorService.regenerateBackupCodes;
+
+// Import and export rate limiting functions
+const rateLimitService = require('./rateLimitService');
+exports.clearRateLimit = rateLimitService.clearRateLimit;
+exports.getRateLimitStatus = rateLimitService.getRateLimitStatus;
+exports.getAllRateLimits = rateLimitService.getAllRateLimits;
+
+// Import and export Member ID service functions
+const memberIdService = require('./memberIdService');
+exports.approveMemberRegistration = memberIdService.approveMemberRegistration;
+exports.rejectMemberRegistration = memberIdService.rejectMemberRegistration;
+
+// Import and export Email Alert service
+const emailAlertService = require('./emailAlertService');
+exports.testEmailAlert = emailAlertService.testEmailAlert;
+
+// Import and export Security Monitor functions
+const securityMonitor = require('./securityMonitor');
+exports.monitorFailedLogins = securityMonitor.monitorFailedLogins;
+exports.monitorLargeWithdrawals = securityMonitor.monitorLargeWithdrawals;
+exports.monitorRoleChanges = securityMonitor.monitorRoleChanges;
+exports.monitorSavingsReduction = securityMonitor.monitorSavingsReduction;
+exports.monitorLargeCommodityOrders = securityMonitor.monitorLargeCommodityOrders;
+exports.logFailedLogin = securityMonitor.logFailedLogin;
+
+// Import and export IP Whitelist service
+const ipWhitelistService = require('./ipWhitelistService');
+exports.checkIPWhitelist = ipWhitelistService.checkIPWhitelist;
+exports.addIPToWhitelist = ipWhitelistService.addIPToWhitelist;
+exports.removeIPFromWhitelist = ipWhitelistService.removeIPFromWhitelist;
+exports.toggleIPWhitelistEnforcement = ipWhitelistService.toggleIPWhitelistEnforcement;
+exports.getMyIP = ipWhitelistService.getMyIP;
+
+// Import and export Device Tracker service
+const deviceTracker = require('./deviceTracker');
+exports.registerDevice = deviceTracker.registerDevice;
+exports.getUserDevices = deviceTracker.getUserDevices;
+exports.trustDevice = deviceTracker.trustDevice;
+exports.removeDevice = deviceTracker.removeDevice;
+exports.renameDevice = deviceTracker.renameDevice;
+
+// Import and export Guarantor Approval functions
+const guarantorApproval = require('./guarantorApproval');
+exports.sendGuarantorApprovalEmail = guarantorApproval.sendGuarantorApprovalEmail;
+exports.getGuarantorApprovalByToken = guarantorApproval.getGuarantorApprovalByToken;
+exports.approveGuarantorRequest = guarantorApproval.approveGuarantorRequest;
+exports.rejectGuarantorRequest = guarantorApproval.rejectGuarantorRequest;
+exports.resendGuarantorApprovalEmail = guarantorApproval.resendGuarantorApprovalEmail;
+
+// Import and export BVN Verification functions
+const verifyBVNModule = require('./verifyBVN');
+exports.verifyBVN = verifyBVNModule.verifyBVN;
+exports.resolveBVN = verifyBVNModule.resolveBVN;
+
+// Import and export NIN Slip Upload functions
+const uploadNINSlipModule = require('./uploadNINSlip');
+exports.uploadNINSlip = uploadNINSlipModule.uploadNINSlip;
+exports.deleteNINSlip = uploadNINSlipModule.deleteNINSlip;
+
+// Cloud Function: Send Verification Email
+exports.sendVerificationEmail = functions.https.onCall(async (data, context) => {
+    const { email, userName, verificationLink } = data;
+
+    if (!email || !userName || !verificationLink) {
+        throw new functions.https.HttpsError('invalid-argument', 'Missing required fields');
+    }
+
+    try {
+        const RESEND_API_KEY = functions.config().resend?.key || process.env.RESEND_API_KEY;
+
+        if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
+            console.warn('Email service not configured. Skipping verification email.');
+            return { success: false, message: 'Email service not configured' };
+        }
+
+        const response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${RESEND_API_KEY}`
+            },
+            body: JSON.stringify({
+                from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
+                to: email,
+                subject: 'Verify Your Email Address',
+                html: `
+                    <!DOCTYPE html>
+                    <html>
+                    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <h2>Welcome to AWSLMCSL!</h2>
+                        <p>Dear ${userName},</p>
+                        <p>Please verify your email address by clicking the button below:</p>
+                        <p style="text-align: center;">
+                            <a href="${verificationLink}" style="display: inline-block; background: #667eea; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold;">Verify Email Address</a>
+                        </p>
+                        <p style="color: #6b7280; font-size: 14px;">This link will expire in 24 hours.</p>
+                    </body>
+                    </html>
+                `
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Resend API error:', errorText);
+            throw new Error(`Failed to send email: ${response.status}`);
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error sending verification email:', error);
+        throw new functions.https.HttpsError('internal', error.message);
+    }
+});
+
+// Import and export Support Ticket function
+const supportTicket = require('./sendSupportTicket');
+exports.sendSupportTicketEmail = supportTicket.sendSupportTicketEmail;

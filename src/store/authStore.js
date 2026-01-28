@@ -19,6 +19,7 @@ import {
 } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
+import { createAuditLog, AUDIT_ACTIONS, AUDIT_SEVERITY } from '../services/auditService'
 export const useAuthStore = create(
     persist(
         (set, get) => ({
@@ -49,10 +50,37 @@ export const useAuthStore = create(
                     const userDoc = querySnapshot.docs[0]
                     const userData = { id: userDoc.id, ...userDoc.data() }
 
+                    // Check if 2FA is enabled for admin/super_admin
+                    if (userData.twoFactorEnabled && ['admin', 'super_admin'].includes(userData.role)) {
+                        // Don't set user state yet - wait for 2FA verification
+                        set({ loading: false })
+                        return {
+                            success: false,
+                            requires2FA: true,
+                            userData: userData,
+                            firebaseUser: firebaseUser
+                        }
+                    }
+
+                    // No 2FA required or not admin - complete login
                     set({
                         user: userData,
                         isAuthenticated: true,
                         loading: false
+                    })
+
+                    // Log successful login
+                    await createAuditLog({
+                        userId: firebaseUser.uid,
+                        action: AUDIT_ACTIONS.USER_LOGIN,
+                        resource: 'auth',
+                        resourceId: firebaseUser.uid,
+                        details: {
+                            email: email,
+                            role: userData.role,
+                            twoFactorEnabled: userData.twoFactorEnabled || false
+                        },
+                        severity: AUDIT_SEVERITY.INFO
                     })
 
                     return { success: true }
@@ -79,7 +107,31 @@ export const useAuthStore = create(
                     }
 
                     set({ loading: false, error: errorMessage })
+
+                    // Log failed login attempt
+                    await createAuditLog({
+                        userId: email,
+                        action: AUDIT_ACTIONS.FAILED_LOGIN_ATTEMPT,
+                        resource: 'auth',
+                        details: { email, errorCode: error.code, errorMessage },
+                        severity: AUDIT_SEVERITY.WARNING
+                    })
                     return { success: false, error: errorMessage }
+                }
+            },
+
+            // Complete login after 2FA verification
+            complete2FALogin: async (userData) => {
+                try {
+                    set({
+                        user: userData,
+                        isAuthenticated: true,
+                        loading: false
+                    })
+                    return { success: true }
+                } catch (error) {
+                    console.error('Error completing 2FA login:', error)
+                    return { success: false, error: error.message }
                 }
             },
 
@@ -124,6 +176,12 @@ export const useAuthStore = create(
                         role: 'member',
                         status: 'pending', // Changed from 'active'
 
+                        // NEW: Approval workflow fields
+                        approvalStatus: 'pending',         // pending|approved|rejected
+                        approvedBy: null,
+                        approvedAt: null,
+                        rejectionReason: null,
+
                         // Email verification fields
                         emailVerified: false,
                         emailVerificationToken: verificationToken,
@@ -136,7 +194,7 @@ export const useAuthStore = create(
                         registrationFeePaidAt: null,
 
                         // Profile fields
-                        phone: null,
+                        phone: userData.phone || null,
                         passport: null,
                         passportUploadedAt: null,
                         bankDetails: [],
@@ -146,6 +204,7 @@ export const useAuthStore = create(
                         profileComplete: false,
                         profileCompletionPercentage: 0,
 
+                        createdAt: serverTimestamp(),
                         joinedAt: serverTimestamp()
                     })
 
@@ -188,6 +247,20 @@ export const useAuthStore = create(
 
             logout: async () => {
                 try {
+                    const currentUser = get().user
+
+                    // Log logout before signing out
+                    if (currentUser) {
+                        await createAuditLog({
+                            userId: currentUser.userId,
+                            action: AUDIT_ACTIONS.USER_LOGOUT,
+                            resource: 'auth',
+                            resourceId: currentUser.userId,
+                            details: { email: currentUser.email, role: currentUser.role },
+                            severity: AUDIT_SEVERITY.INFO
+                        })
+                    }
+
                     await signOut(auth)
                     set({ user: null, isAuthenticated: false })
                 } catch (error) {
@@ -197,45 +270,44 @@ export const useAuthStore = create(
                 }
             },
 
-            checkSession: async () => {
-                try {
-                    // Firebase Auth handles session persistence automatically
-                    // This will be called by the auth state listener
-                    return new Promise((resolve) => {
-                        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-                            if (firebaseUser) {
-                                // User is signed in, fetch their data
-                                try {
-                                    const q = query(
-                                        collection(db, 'users'),
-                                        where('userId', '==', firebaseUser.uid)
-                                    )
-                                    const querySnapshot = await getDocs(q)
+            checkSession: () => {
+                // Set up a PERSISTENT auth state listener that returns cleanup function
+                // This prevents infinite loops by not creating new listeners on every render
+                const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+                    if (firebaseUser) {
+                        // User is signed in, fetch their data
+                        try {
+                            const q = query(
+                                collection(db, 'users'),
+                                where('userId', '==', firebaseUser.uid)
+                            )
+                            const querySnapshot = await getDocs(q)
 
-                                    if (!querySnapshot.empty) {
-                                        const userDoc = querySnapshot.docs[0]
-                                        const userData = { id: userDoc.id, ...userDoc.data() }
+                            if (!querySnapshot.empty) {
+                                const userDoc = querySnapshot.docs[0]
+                                const userData = { id: userDoc.id, ...userDoc.data() }
 
-                                        set({
-                                            user: userData,
-                                            isAuthenticated: true
-                                        })
-                                    }
-                                } catch (error) {
-                                    console.error('Error fetching user data:', error)
-                                    set({ user: null, isAuthenticated: false })
-                                }
+                                set({
+                                    user: userData,
+                                    isAuthenticated: true
+                                })
                             } else {
-                                // User is signed out
+                                // User exists in Firebase Auth but not in Firestore
+                                console.warn('User found in Auth but not in Firestore:', firebaseUser.uid)
                                 set({ user: null, isAuthenticated: false })
                             }
-                            unsubscribe()
-                            resolve()
-                        })
-                    })
-                } catch (error) {
-                    set({ user: null, isAuthenticated: false })
-                }
+                        } catch (error) {
+                            console.error('Error fetching user data:', error)
+                            set({ user: null, isAuthenticated: false })
+                        }
+                    } else {
+                        // User is signed out
+                        set({ user: null, isAuthenticated: false })
+                    }
+                })
+
+                // Return the unsubscribe function so caller can clean up
+                return unsubscribe
             },
 
             updateUser: (updates) => {

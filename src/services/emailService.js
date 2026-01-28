@@ -59,7 +59,7 @@ export const emailService = {
                                     </p>
                                 </div>
                                 <div class="footer">
-                                    <p>AWSLMCSL Cooperative Society<br>This is an automated message, please do not reply.</p>
+                                    <p>AWSLMCSL Cooperative Society<br>University of Jos Library, PMB 2084<br>Phone: 08065810868, 08136905553<br>Email: support@anchoragecs.com<br>This is an automated message, please do not reply.</p>
                                 </div>
                             </div>
                         </body>
@@ -390,49 +390,21 @@ export const emailService = {
     // Existing methods continue below...
     sendVerificationEmail: async (email, userName, verificationLink) => {
         try {
-            if (!RESEND_API_KEY || RESEND_API_KEY === 'undefined') {
-                console.warn('Email service not configured. Skipping verification email.')
-                return { success: false, message: 'Email service not configured' }
-            }
+            // Import Cloud Functions
+            const { getFunctions, httpsCallable } = await import('firebase/functions')
+            const { app } = await import('../lib/firebase')
 
-            const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), 5000)
+            const functions = getFunctions(app)
+            const sendVerificationEmailFn = httpsCallable(functions, 'sendVerificationEmail')
 
-            const response = await fetch('https://api.resend.com/emails', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${RESEND_API_KEY}`
-                },
-                signal: controller.signal,
-                body: JSON.stringify({
-                    from: 'AWSLMCSL Cooperative <noreply@awslmcsl.org>',
-                    to: email,
-                    subject: 'Verify Your Email Address',
-                    html: `
-                        <!DOCTYPE html>
-                        <html>
-                        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                            <h2>Welcome to AWSLMCSL!</h2>
-                            <p>Dear ${userName},</p>
-                            <p>Please verify your email address by clicking the button below:</p>
-                            <p style="text-align: center;">
-                                <a href="${verificationLink}" style="display: inline-block; background: #667eea; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold;">Verify Email Address</a>
-                            </p>
-                            <p style="color: #6b7280; font-size: 14px;">This link will expire in 24 hours.</p>
-                        </body>
-                        </html>
-                    `
-                })
+            // Call Cloud Function instead of direct API call to avoid CORS
+            const result = await sendVerificationEmailFn({
+                email,
+                userName,
+                verificationLink
             })
 
-            clearTimeout(timeoutId)
-
-            if (!response.ok) {
-                throw new Error(`Failed to send email: ${response.status}`)
-            }
-
-            return { success: true }
+            return result.data
         } catch (error) {
             console.error('Error sending verification email:', error)
             return { success: false, error: error.message }

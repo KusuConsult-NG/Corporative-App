@@ -1,8 +1,54 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated and verified
+    function isVerified() {
+      return request.auth != null 
+             && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.emailVerified == true;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null
+             && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin', 'finance_officer'];
+    }
+    
+    // Passport photos - user-specific, max 5MB, images only
+    match /passports/{userId}/{fileName} {
+      allow read: if isVerified();
+      allow write: if isVerified()
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Commodity images - admin only, max 10MB, images only  
+    match /commodities/{fileName} {
+      allow read: if isVerified();
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdmin();
+    }
+    
+    // Documents (e.g., loan documents, reports) - user-specific, max 5MB, PDFs or images
+    match /documents/{userId}/{fileName} {
+      allow read: if isVerified()
+                  && (request.auth.uid == userId || isAdmin());
+      allow write: if isVerified()
+                   && request.auth.uid == userId
+                   && request.resource.size < 5 * 1024 * 1024
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType.matches('application/pdf'));
+      allow delete: if request.auth != null 
+                    && (request.auth.uid == userId || isAdmin());
+    }
+    
+    // Deny all other paths
     match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

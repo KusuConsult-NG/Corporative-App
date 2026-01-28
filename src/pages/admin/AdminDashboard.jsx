@@ -20,10 +20,11 @@ import {
 import { formatCurrency } from '../../utils/formatters'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore'
 import { db } from '../../lib/firebase'
 import { useAuthStore } from '../../store/authStore'
 import { hasPermission, PERMISSIONS, isSuperAdmin, isFullAdmin, getRoleDisplayName, getRoleBadgeColor, ROLES } from '../../utils/permissions'
+import { SkeletonStatCard } from '../../components/ui/SkeletonLoader'
 
 export default function AdminDashboard() {
     const navigate = useNavigate()
@@ -58,12 +59,86 @@ export default function AdminDashboard() {
     const canManageRoles = isSuperAdmin(user)
     const isAdmin = isFullAdmin(user)
 
-    // Fetch real-time dashboard stats
+    // Fetch real-time dashboard stats with Firestore snapshots
     useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                setLoading(true)
-                const newStats = { ...stats }
+        const unsubscribers = []
+
+        try {
+            setLoading(true)
+
+            // Real-time listener for pending loan requests
+            if (canViewLoans) {
+                const pendingLoansQuery = query(
+                    collection(db, 'loans'),
+                    where('status', '==', 'pending')
+                )
+
+                const unsubLoans = onSnapshot(pendingLoansQuery, (snapshot) => {
+                    setStats(prev => ({
+                        ...prev,
+                        pendingRequests: snapshot.size
+                    }))
+
+                    // Notify on new pending loans
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'added' && change.doc.metadata.hasPendingWrites === false) {
+                            // Toast notification for new loan request
+                            console.log('📋 New loan request received!')
+                        }
+                    })
+                })
+                unsubscribers.push(unsubLoans)
+            }
+
+            // Real-time listener for pending commodity orders
+            if (canViewOrders) {
+                const ordersQuery = query(
+                    collection(db, 'commodity_orders'),
+                    where('status', '==', 'pending')
+                )
+
+                const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
+                    setStats(prev => ({
+                        ...prev,
+                        pendingOrders: snapshot.size
+                    }))
+                })
+                unsubscribers.push(unsubOrders)
+            }
+
+            // Real-time listener for pending complaints
+            const complaintsQuery = query(
+                collection(db, 'complaints'),
+                where('status', '==', 'open')
+            )
+
+            const unsubComplaints = onSnapshot(complaintsQuery, (snapshot) => {
+                setStats(prev => ({
+                    ...prev,
+                    pendingComplaints: snapshot.size
+                }))
+            })
+            unsubscribers.push(unsubComplaints)
+
+            // Real-time listener for pending profile changes
+            if (isAdmin) {
+                const profileQuery = query(
+                    collection(db, 'profile_change_requests'),
+                    where('status', '==', 'pending')
+                )
+
+                const unsubProfile = onSnapshot(profileQuery, (snapshot) => {
+                    setStats(prev => ({
+                        ...prev,
+                        pendingProfileChanges: snapshot.size
+                    }))
+                })
+                unsubscribers.push(unsubProfile)
+            }
+
+            // Fetch one-time stats (members, savings, active loans)
+            const fetchOneTimeStats = async () => {
+                const newStats = {}
 
                 // Get total members (if permitted)
                 if (canViewMembers) {
@@ -94,59 +169,30 @@ export default function AdminDashboard() {
                         (sum, doc) => sum + (doc.data().amount || 0),
                         0
                     )
-
-                    // Get pending loan requests
-                    const pendingQuery = query(
-                        collection(db, 'loans'),
-                        where('status', '==', 'pending')
-                    )
-                    const pendingSnapshot = await getDocs(pendingQuery)
-                    newStats.pendingRequests = pendingSnapshot.size
-                }
-
-                // Get pending commodity orders (if permitted)
-                if (canViewOrders) {
-                    const ordersQuery = query(
-                        collection(db, 'commodity_orders'),
-                        where('status', '==', 'pending')
-                    )
-                    const ordersSnapshot = await getDocs(ordersQuery)
-                    newStats.pendingOrders = ordersSnapshot.size
-                }
-
-                // Get pending complaints
-                const complaintsQuery = query(
-                    collection(db, 'complaints'),
-                    where('status', '==', 'open')
-                )
-                const complaintsSnapshot = await getDocs(complaintsQuery)
-                newStats.pendingComplaints = complaintsSnapshot.size
-
-                // Get pending profile changes (if full admin)
-                if (isAdmin) {
-                    const profileQuery = query(
-                        collection(db, 'profile_change_requests'),
-                        where('status', '==', 'pending')
-                    )
-                    const profileSnapshot = await getDocs(profileQuery)
-                    newStats.pendingProfileChanges = profileSnapshot.size
                 }
 
                 newStats.monthlyGrowth = 8.5 // This would need historical data
 
-                setStats(newStats)
+                setStats(prev => ({ ...prev, ...newStats }))
 
                 // Fetch recent activities
                 await fetchRecentActivities()
-            } catch (error) {
-                console.error('Error fetching dashboard stats:', error)
-            } finally {
+
                 setLoading(false)
             }
+
+            fetchOneTimeStats()
+
+        } catch (error) {
+            console.error('Error setting up dashboard listeners:', error)
+            setLoading(false)
         }
 
-        fetchStats()
-    }, [])
+        // Cleanup listeners on unmount
+        return () => {
+            unsubscribers.forEach(unsub => unsub())
+        }
+    }, [canViewMembers, canViewLoans, canViewSavings, canViewOrders, isAdmin])
 
     const fetchRecentActivities = async () => {
         try {
@@ -242,10 +288,24 @@ export default function AdminDashboard() {
 
     if (loading) {
         return (
-            <div className="p-6 lg:p-10 max-w-7xl mx-auto flex items-center justify-center h-96">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                    <p className="mt-4 text-slate-600 dark:text-slate-400">Loading dashboard...</p>
+            <div className="p-6 lg:p-10 max-w-7xl mx-auto flex flex-col gap-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <div className="h-10 w-64 bg-slate-200 dark:bg-slate-700 rounded animate-pulse mb-2"></div>
+                        <div className="h-4 w-96 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+                    <SkeletonStatCard />
+                    <SkeletonStatCard />
+                    <SkeletonStatCard />
+                    <SkeletonStatCard />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+                    <SkeletonStatCard />
+                    <SkeletonStatCard />
+                    <SkeletonStatCard />
+                    <SkeletonStatCard />
                 </div>
             </div>
         )

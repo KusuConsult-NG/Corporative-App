@@ -86,13 +86,28 @@ export default function CustomerCareDashboard() {
                 doc => doc.data().status === 'active'
             ).length
 
+            // Calculate actual average response time
+            const allComplaintsSnapshot = await getDocs(collection(db, 'complaints'))
+            const complaintsWithResponse = allComplaintsSnapshot.docs
+                .map(doc => doc.data())
+                .filter(c => c.respondedAt && c.createdAt)
+
+            let avgResponseTime = 0
+            if (complaintsWithResponse.length > 0) {
+                const totalResponseTime = complaintsWithResponse.reduce((sum, c) => {
+                    const responseTimeMs = c.respondedAt.toMillis() - c.createdAt.toMillis()
+                    return sum + responseTimeMs
+                }, 0)
+                avgResponseTime = (totalResponseTime / complaintsWithResponse.length) / (1000 * 60 * 60) // Convert to hours
+            }
+
             setStats({
                 openComplaints: complaintsSnapshot.size,
                 pendingOrders: ordersSnapshot.size,
                 activeMembers,
                 recentMessages: complaintsSnapshot.size + ordersSnapshot.size,
                 resolutionRate: parseFloat(resolutionRate),
-                avgResponseTime: 2.5 // This would be calculated from actual response times
+                avgResponseTime: avgResponseTime > 0 ? avgResponseTime.toFixed(1) : 0
             })
 
             setComplaints(complaintsData.slice(0, 5))
@@ -119,10 +134,12 @@ export default function CustomerCareDashboard() {
 
     const getPriorityColor = (priority) => {
         switch (priority) {
-            case 'high':
+            case 'urgent':
                 return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-            case 'medium':
+            case 'high':
                 return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+            case 'normal':
+                return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
             case 'low':
                 return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
             default:

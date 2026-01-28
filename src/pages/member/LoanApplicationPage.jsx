@@ -20,7 +20,7 @@ import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
-import GuarantorSelector from '../../components/GuarantorSelector'
+// GuarantorSelector no longer needed - using email input instead
 
 const LOAN_TYPES = [
     {
@@ -30,27 +30,27 @@ const LOAN_TYPES = [
         fixedAmount: true,
         duration: 3, // Fixed 3 months
         fixedDuration: true,
-        rate: 5, // 5% flat
-        description: 'Quick relief loan for urgent needs. Fixed amount of ₦30,000 at 5% flat interest over 3 months.',
+        rate: 6, // 6% flat
+        description: 'Quick relief loan for urgent needs. Fixed amount of ₦30,000 at 6% flat interest over 3 months.',
         eligibility: 'Must have paid membership fee (₦2,000)'
     },
     {
         value: 'advancement',
         label: 'Advancement Loan',
         multiplier: 2, // 2x savings
-        rate: 10, // 10% flat
+        rate: 12, // 12% flat
         duration: 6, // Fixed 6 months
         fixedDuration: true,
-        description: 'Get twice your savings balance at 10% flat interest over 6 months.',
+        description: 'Get twice your savings balance at 12% flat interest over 6 months.',
         eligibility: 'Must have consistent savings for at least 3 months'
     },
     {
         value: 'progress_plus',
         label: 'Progress+ Loan',
         multiplier: 3, // 3x savings
-        rate: 15, // 15% per annum
+        rate: 18, // 18% per annum
         maxDuration: 12,
-        description: 'Get three times your savings balance at 15% per annum over 12 months.',
+        description: 'Get three times your savings balance at 18% per annum over 12 months.',
         eligibility: 'Must have consistent savings for at least 6 months'
     },
 ]
@@ -72,7 +72,7 @@ export default function LoanApplicationPage() {
         purpose: '',
         currentSalary: '',
         payslips: [], // File uploads for 2 payslips
-        guarantors: [],
+        guarantorEmail: '', // Guarantor email for approval workflow
         agreedToTerms: false
     })
 
@@ -143,30 +143,14 @@ export default function LoanApplicationPage() {
         }
     }
 
-    const handleGuarantorSelect = (guarantor) => {
-        if (formData.guarantors.some(g => g.fileNumber === guarantor.fileNumber)) {
-            setErrors({ ...errors, guarantor: 'This guarantor has already been added' })
-            return
+    const handleGuarantorEmailChange = (e) => {
+        const email = e.target.value
+        setFormData({ ...formData, guarantorEmail: email })
+
+        // Clear error when user types
+        if (errors.guarantorEmail) {
+            setErrors({ ...errors, guarantorEmail: null })
         }
-
-        setFormData({
-            ...formData,
-            guarantors: [
-                ...formData.guarantors,
-                {
-                    ...guarantor,
-                    id: Date.now()
-                }
-            ]
-        })
-        setErrors({ ...errors, guarantor: null })
-    }
-
-    const removeGuarantor = (id) => {
-        setFormData({
-            ...formData,
-            guarantors: formData.guarantors.filter(g => g.id !== id)
-        })
     }
 
     const handlePayslipUpload = (e) => {
@@ -221,9 +205,13 @@ export default function LoanApplicationPage() {
             newErrors.payslips = 'Please upload your last 2 payslips'
         }
 
-        // Guarantor is mandatory - minimum 1 required
-        if (formData.guarantors.length < 1) {
-            newErrors.guarantors = 'At least 1 guarantor is required'
+        // Guarantor email is mandatory
+        if (!formData.guarantorEmail || !formData.guarantorEmail.trim()) {
+            newErrors.guarantorEmail = 'Guarantor email is required'
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.guarantorEmail)) {
+            newErrors.guarantorEmail = 'Please enter a valid email address'
+        } else if (formData.guarantorEmail.toLowerCase() === user?.email?.toLowerCase()) {
+            newErrors.guarantorEmail = 'Guarantor cannot be the same person as the applicant'
         }
 
         if (!formData.agreedToTerms) newErrors.agreedToTerms = 'You must agree to the terms and conditions'
@@ -463,48 +451,33 @@ export default function LoanApplicationPage() {
 
                             <hr className="border-slate-200 dark:border-slate-700" />
 
-                            {/* Guarantors Section */}
+                            {/* Guarantor Section */}
                             <div>
                                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
                                     <Users className="text-primary" size={20} />
-                                    Guarantors
+                                    Guarantor
                                 </h3>
                                 <div className="space-y-4">
-                                    <GuarantorSelector
-                                        onSelect={handleGuarantorSelect}
-                                        excludeId={user?.memberId}
-                                        error={errors.guarantor}
-                                    />
-
-                                    {formData.guarantors.length > 0 && (
-                                        <div className="flex flex-wrap gap-2">
-                                            {formData.guarantors.map((guarantor) => (
-                                                <div
-                                                    key={guarantor.id}
-                                                    className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700"
-                                                >
-                                                    <div className="flex flex-col">
-                                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                                                            {guarantor.name}
-                                                        </span>
-                                                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                                                            ID: {guarantor.fileNumber}
-                                                        </span>
-                                                    </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeGuarantor(guarantor.id)}
-                                                        className="text-slate-400 hover:text-red-500 transition-colors ml-2"
-                                                    >
-                                                        <X size={16} />
-                                                    </button>
-                                                </div>
-                                            ))}
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
+                                        <div className="flex gap-2">
+                                            <Info className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={16} />
+                                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                                                Your guarantor will receive an email to approve this loan request before it can be processed.
+                                            </p>
                                         </div>
-                                    )}
-                                    {errors.guarantors && (
-                                        <p className="text-red-500 text-xs">{errors.guarantors}</p>
-                                    )}
+                                    </div>
+
+                                    <Input
+                                        label="Guarantor Email Address"
+                                        type="email"
+                                        name="guarantorEmail"
+                                        placeholder="guarantor@example.com"
+                                        value={formData.guarantorEmail}
+                                        onChange={handleGuarantorEmailChange}
+                                        error={errors.guarantorEmail}
+                                        required
+                                        icon={Users}
+                                    />
                                 </div>
                             </div>
 

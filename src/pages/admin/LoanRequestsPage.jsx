@@ -11,7 +11,9 @@ import {
     Eye,
     PlayCircle,
     StopCircle,
-    AlertCircle
+    AlertCircle,
+    FileSpreadsheet,
+    FileText as FilePdf
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '../../utils/formatters'
 import Button from '../../components/ui/Button'
@@ -25,6 +27,8 @@ import { emailService } from '../../services/emailService'
 import { createSystemNotification } from '../../utils/notificationUtils'
 import { useAuthStore } from '../../store/authStore'
 import { hasPermission, PERMISSIONS } from '../../utils/permissions'
+import { exportLoansToPDF, exportLoansToExcel } from '../../utils/exportUtils'
+import { createAuditLog, AUDIT_ACTIONS, AUDIT_SEVERITY } from '../../services/auditService'
 
 export default function LoanRequestsPage() {
     const { user } = useAuthStore()
@@ -122,6 +126,29 @@ export default function LoanRequestsPage() {
                 console.warn('Notifications or emails failed:', notifyError)
             }
 
+            // Audit logging
+            const actionMap = {
+                approve: AUDIT_ACTIONS.LOAN_APPROVED,
+                decline: AUDIT_ACTIONS.LOAN_REJECTED,
+                activate: AUDIT_ACTIONS.LOAN_ACTIVATED,
+                deactivate: AUDIT_ACTIONS.LOAN_DEACTIVATED
+            }
+
+            await createAuditLog({
+                userId: user.userId,
+                action: actionMap[actionType],
+                resource: 'loans',
+                resourceId: selectedLoan.id,
+                details: {
+                    loanId: selectedLoan.id,
+                    applicantName: selectedLoan.applicantName,
+                    amount: selectedLoan.amount,
+                    actionType,
+                    reason: actionReason
+                },
+                severity: AUDIT_SEVERITY.INFO
+            })
+
             // Refresh loans
             const allLoans = await loansAPI.getAllLoans()
             setRequests(allLoans)
@@ -167,10 +194,22 @@ export default function LoanRequestsPage() {
                         Manage and review incoming loan applications
                     </p>
                 </div>
-                <Button>
-                    <FileText size={20} />
-                    Export Report
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        variant="secondary"
+                        onClick={() => exportLoansToPDF()}
+                    >
+                        <FilePdf size={18} />
+                        Export PDF
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={() => exportLoansToExcel()}
+                    >
+                        <FileSpreadsheet size={18} />
+                        Export Excel
+                    </Button>
+                </div>
             </div>
 
             {/* Read-Only Warning for Limited Admins */}

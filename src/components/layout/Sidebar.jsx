@@ -1,4 +1,3 @@
-import { NavLink } from 'react-router-dom'
 import {
     LayoutDashboard,
     PiggyBank,
@@ -16,7 +15,17 @@ import {
     MessageSquare,
     AlertCircle,
     Shield,
-    Calendar
+    Calendar,
+    BarChart3,
+    Lock,
+    ScrollText,
+    AlertTriangle,
+    UserPlus,
+    Globe,
+    Bell,
+    Headphones,
+    UserCog,
+    ArrowDownCircle
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { hasPermission, PERMISSIONS, isSuperAdmin } from '../../utils/permissions'
@@ -27,23 +36,36 @@ const memberNavItems = [
     { name: 'Savings', path: '/member/savings', icon: PiggyBank },
     { name: 'Loans', path: '/member/loans', icon: CreditCard },
     { name: 'Commodities', path: '/member/commodities', icon: ShoppingCart },
-    { name: 'Messages', path: '/member/messages', icon: MessageSquare },
+    { name: 'Notifications', path: '/member/notifications', icon: Bell },
     { name: 'Submit Report', path: '/member/submit-report', icon: AlertCircle },
 ]
 
 const adminNavItems = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Customer Care', path: '/admin/customer-care', icon: Headphones },
+    { name: 'All Approvals', path: '/admin/all-approvals', icon: CheckSquare, permission: PERMISSIONS.VIEW_APPROVALS },
     { name: 'Members', path: '/admin/members', icon: Users, permission: PERMISSIONS.VIEW_MEMBERS },
     { name: 'Approvals', path: '/admin/approvals', icon: CheckSquare, permission: PERMISSIONS.VIEW_APPROVALS },
     { name: 'Commodity Orders', path: '/admin/commodity-orders', icon: Package, permission: PERMISSIONS.VIEW_COMMODITY_ORDERS },
     { name: 'Commodity Deductions', path: '/admin/commodity-deductions', icon: Calendar, permission: PERMISSIONS.MANAGE_COMMODITIES },
     { name: 'Broadcast', path: '/admin/broadcast', icon: MessageSquare, permission: PERMISSIONS.SEND_BROADCAST },
     { name: 'Savings', path: '/admin/savings', icon: PiggyBank, permission: PERMISSIONS.VIEW_SAVINGS },
+    { name: 'Savings Reduction', path: '/admin/savings/reduction-requests', icon: ArrowDownCircle, permission: PERMISSIONS.VIEW_SAVINGS },
     { name: 'Loans', path: '/admin/loans/requests', icon: CreditCard, permission: PERMISSIONS.VIEW_LOANS },
     { name: 'Commodities', path: '/admin/commodities', icon: ShoppingCart, permission: PERMISSIONS.MANAGE_COMMODITIES },
+    { name: 'Complaints', path: '/admin/complaints', icon: MessageSquare },
+    { name: 'Profile Changes', path: '/admin/profile-changes', icon: UserCog, permission: PERMISSIONS.VIEW_MEMBERS },
     { name: 'Reports', path: '/admin/reports', icon: FileText, permission: PERMISSIONS.VIEW_REPORTS },
+    { name: 'Analytics', path: '/admin/analytics', icon: BarChart3, permission: PERMISSIONS.VIEW_REPORTS },
+    { name: 'Security', path: '/admin/security', icon: Lock },
+    { name: 'Audit Logs', path: '/admin/audit-logs', icon: ScrollText, requireSuperAdmin: true },
+    { name: 'Registrations', path: '/admin/registrations', icon: UserPlus, permission: PERMISSIONS.VIEW_MEMBERS },
+    { name: 'IP Whitelist', path: '/admin/ip-whitelist', icon: Globe, requireSuperAdmin: true },
+    { name: 'Rate Limits', path: '/admin/rate-limits', icon: AlertTriangle, requireSuperAdmin: true },
+    { name: 'Security Monitor', path: '/admin/security-monitoring', icon: Shield, requireSuperAdmin: true },
     { name: 'Role Management', path: '/admin/roles', icon: Shield, requireSuperAdmin: true },
 ]
+
 
 export default function Sidebar({ role = 'member' }) {
     const { user, logout } = useAuthStore()

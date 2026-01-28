@@ -157,6 +157,11 @@ export function canAccessAdmin(user) {
         return false
     }
 
+    // Check email verification and registration fee payment
+    if (!user.emailVerified || !user.registrationFeePaid) {
+        return false
+    }
+
     return [ROLES.CUSTOMER_CARE, ROLES.ADMIN, ROLES.SUPER_ADMIN, 'limitedAdmin'].includes(user.role)
 }
 
@@ -235,4 +240,36 @@ export function canAssignRole(currentUser, targetRole) {
 
     // Super admins can assign any role
     return Object.values(ROLES).includes(targetRole)
+}
+
+/**
+ * Check if user is verified (email verified)
+ * @param {Object} user - User object
+ * @returns {boolean} - True if email is verified
+ */
+export function isVerified(user) {
+    return user?.emailVerified === true
+}
+
+/**
+ * Check if user has completed onboarding (email verified + registration fee paid)
+ * @param {Object} user - User object
+ * @returns {boolean} - True if user has completed onboarding
+ */
+export function hasCompletedOnboarding(user) {
+    return user?.emailVerified === true && user?.registrationFeePaid === true
+}
+
+/**
+ * Check if user can perform financial operations (loans, savings reduction, etc.)
+ * @param {Object} user - User object
+ * @returns {boolean} - True if user can perform financial operations
+ */
+export function canPerformFinancialOperations(user) {
+    if (!user) return false
+
+    // Must be email verified, paid registration fee, and have active status
+    return user.emailVerified === true
+        && user.registrationFeePaid === true
+        && user.status === 'active'
 }

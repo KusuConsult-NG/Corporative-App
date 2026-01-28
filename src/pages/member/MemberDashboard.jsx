@@ -382,8 +382,7 @@ export default function MemberDashboard() {
 
             {/* Footer */}
             <footer className="mt-8 text-center text-xs text-slate-400 dark:text-slate-500 pb-6">
-                © 2023 AWSLMCSL. All rights reserved. <br />
-                University of Jos Staff Cooperative.
+                © 2025 AWSLMCSL. All rights reserved.
             </footer>
         </div>
     )

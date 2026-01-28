@@ -10,8 +10,16 @@ const AppWithAuth = () => {
     const checkSession = useAuthStore((state) => state.checkSession)
 
     useEffect(() => {
-        checkSession()
-    }, [])
+        // Set up auth listener and return cleanup function
+        const unsubscribe = checkSession()
+
+        // Cleanup on unmount
+        return () => {
+            if (unsubscribe) {
+                unsubscribe()
+            }
+        }
+    }, [checkSession])
 
     return <App />
 }

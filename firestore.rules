@@ -3,186 +3,121 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // ============================================
-    // Helper Functions
-    // ============================================
-    
     function isAuthenticated() {
       return request.auth != null;
     }
     
     function isAdmin() {
       return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'super_admin', 'finance_officer'];
+             request.auth.token.role in ['admin', 'super_admin'];
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.role == 'super_admin';
     }
     
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    function isMemberOwner(memberId) {
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.memberId == memberId;
-    }
-    
-    // ============================================
-    // Users Collection
-    // ============================================
-    
+    // Users: Read own or admin, write own only, prevent role escalation
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) && 
+                       // Prevent role escalation
+                       (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
+      allow delete: if false;
     }
     
-    // ============================================
-    // Savings & Transactions
-    // ============================================
-    
-    match /savings/{savingsId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
+    // Loans: User can read/write own, admins read all
+    match /loanApplications/{loanId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow delete: if false;
     }
     
-    match /savings_transactions/{transactionId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // ============================================
-    // Loans & Guarantors
-    // ============================================
-    
-    match /loans/{loanId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    match /guarantor_approvals/{approvalId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated(); // Allow guarantors to approve/reject
-      allow delete: if isAdmin();
-    }
-    
-    match /loan_installments/{installmentId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // ============================================
-    // Commodities & Orders
-    // ============================================
-    
-    match /commodities/{commodityId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    match /commodity_orders/{orderId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    match /commodity_installments/{installmentId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // ============================================
-    // Wallet & Transactions
-    // ============================================
-    
-    match /wallets/{walletId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    match /wallet_transactions/{transactionId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // ============================================
-    // Notifications & Messages
-    // ============================================
-    
-    match /notifications/{notificationId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAuthenticated(); // Allow users to mark as read
-      allow delete: if isAuthenticated(); // Allow users to delete their own notifications
-    }
-    
-    match /messages/{messageId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAuthenticated(); // Allow users to mark as read/archive
-      allow delete: if isAdmin();
-    }
-    
-    // ============================================
-    // Complaints & Reports
-    // ============================================
-    
-    match /complaints/{complaintId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    match /reports/{reportId} {
-      allow read: if isAdmin();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // ============================================
-    // Profile Changes & Savings Reductions
-    // ============================================
-    
-    match /profile_change_requests/{requestId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    match /savings_reduction_requests/{requestId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-    
-    // ============================================
-    // Virtual Accounts (Paystack)
-    // ============================================
-    
+    // Virtual Accounts: Owner or admin only
     match /virtual_accounts/{accountId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false; // Cloud Function only
+    }
+    
+    // Notifications: User can read/delete own
+    match /notifications/{notifId} {
+      allow read, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create, update: if false;
+    }
+    
+    // Audit Logs: Admin read-only, write via Cloud Function only
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    
+    // Support Tickets: User reads own, admins read all
+    match /supportTickets/{ticketId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+    
+    // System Config: Super admin only
+    match /system_config/{configId} {
+      allow read: if isAdmin();
+      allow write: if isSuperAdmin();
+    }
+    
+    // IP Whitelist: Admin read, super admin write
+    match /ip_whitelist/{ruleId} {
+      allow read: if isAdmin();
+      allow write: if isSuperAdmin();
+    }
+    
+    // Member Registry: Read-only for authenticated
+    match /member_registry/{memberId} {
       allow read: if isAuthenticated();
-      allow create, update, delete: if false; // Only backend can create via Cloud Functions
+      allow write: if false;
+    }
+    
+    // Guarantor Approvals
+    match /guarantorApprovals/{approvalId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if false;
+    }
+    
+    // Savings, withdrawals, transactions, orders
+    match /savings/{savingId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+    
+    match /withdrawals/{withdrawalId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+    
+    match /transactions/{txId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+    
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+    
+    // Default: Deny all
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

@@ -5,6 +5,8 @@ import { useAuthStore } from '../../store/authStore'
 import { canAccessAdmin } from '../../utils/permissions'
 import Input from '../../components/ui/Input'
 import Button from '../../components/ui/Button'
+import ByeLawModal from '../../components/modals/ByeLawModal'
+
 
 export default function AuthPage() {
     const [mode, setMode] = useState('login') // 'login' or 'register'
@@ -26,6 +28,7 @@ export default function AuthPage() {
         middleName: '',
         lastName: '',
         email: '',
+        phone: '',
         staffId: '',
         department: '',
         rank: '',
@@ -44,13 +47,16 @@ export default function AuthPage() {
     })
 
     const [agreedToTerms, setAgreedToTerms] = useState(false)
+    const [byeLawModalOpen, setByeLawModalOpen] = useState(false)
 
     const [errors, setErrors] = useState({})
 
     const validateEmail = (email) => {
         const trimmedEmail = email.trim().toLowerCase()
-        if (!trimmedEmail.endsWith('@unijos.edu.ng')) {
-            return 'Email must be a valid @unijos.edu.ng address'
+        // Basic email format validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(trimmedEmail)) {
+            return 'Please enter a valid email address'
         }
         return null
     }
@@ -79,6 +85,25 @@ export default function AuthPage() {
         if (result.success) {
             // Get updated user from store
             const { user } = useAuthStore.getState()
+
+            // Check if email is verified
+            const { user: currentUser } = useAuthStore.getState()
+            if (currentUser && !currentUser.emailVerified) {
+                // Sign out unverified user
+                await get().logout()
+                setErrors({ email: 'Please verify your email before logging in. Check your inbox for the verification link.' })
+                setLoading(false)
+                return
+            }
+
+            // Check if registration fee is paid
+            if (!user?.registrationFeePaid) {
+                navigate('/registration-fee', {
+                    state: { message: 'Please complete your registration fee payment to access your account.' }
+                })
+                return
+            }
+
             navigate(canAccessAdmin(user) ? '/admin/dashboard' : '/member/dashboard')
         } else {
             setErrors({ password: result.error || 'Invalid credentials' })
@@ -131,7 +156,7 @@ export default function AuthPage() {
     return (
         <div className="flex flex-col lg:flex-row min-h-screen w-full">
             {/* Left Side: Hero / Branding (Desktop only) */}
-            <div className="hidden lg:flex w-1/2 bg-[#f0f4f8] relative overflow-hidden flex-col justify-between p-12 xl:p-20">
+            <div className="hidden lg:flex lg:fixed lg:left-0 lg:top-0 lg:h-screen w-1/2 bg-[#f0f4f8] relative overflow-hidden flex-col justify-between p-12 xl:p-20">
                 {/* Background Decoration */}
                 <div className="absolute inset-0 z-0">
                     <div className="absolute inset-0 bg-gradient-to-br from-primary via-blue-700 to-blue-900"></div>
@@ -171,13 +196,13 @@ export default function AuthPage() {
             </div>
 
             {/* Right Side: Auth Forms */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-white dark:bg-[#1a2632] overflow-y-auto">
+            <div className="w-full lg:w-1/2 lg:ml-[50%] flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12 bg-white dark:bg-[#1a2632] overflow-y-auto">
                 <div className="w-full max-w-[480px] flex flex-col gap-6">
                     {/* Mobile Only Header */}
                     <div className="lg:hidden w-full h-32 rounded-xl bg-primary/10 mb-4 overflow-hidden relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 opacity-90"></div>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                            <h1 className="text-white text-2xl font-bold">Unijos Cooperative</h1>
+                        <div className="absolute inset-0 flex items-center justify-center px-4">
+                            <h1 className="text-white text-xl font-bold text-center">AWSLMCSL Cooperative</h1>
                         </div>
                     </div>
 
@@ -212,8 +237,8 @@ export default function AuthPage() {
                         </h2>
                         <p className="text-[#4c739a] dark:text-gray-400 text-sm mt-2">
                             {mode === 'login'
-                                ? 'Enter your official Unijos credentials to access your dashboard.'
-                                : 'Register with your official Unijos email to join the cooperative.'}
+                                ? 'Enter your email and password to access your dashboard.'
+                                : 'Register with your email to join the cooperative.'}
                         </p>
                     </div>
 
@@ -221,10 +246,10 @@ export default function AuthPage() {
                     {mode === 'login' && (
                         <form onSubmit={handleLogin} className="flex flex-col gap-5 mt-2">
                             <Input
-                                label="Official Unijos Email"
+                                label="Email Address"
                                 type="email"
                                 icon={Mail}
-                                placeholder="staff.name@unijos.edu.ng"
+                                placeholder="your.email@example.com"
                                 value={loginData.email}
                                 onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                                 error={errors.email}
@@ -282,7 +307,7 @@ export default function AuthPage() {
                                 </select>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Input
                                     label="First Name"
                                     type="text"
@@ -291,14 +316,6 @@ export default function AuthPage() {
                                     value={registerData.firstName}
                                     onChange={(e) => setRegisterData({ ...registerData, firstName: e.target.value })}
                                     required
-                                />
-                                <Input
-                                    label="Middle Name"
-                                    type="text"
-                                    icon={User}
-                                    placeholder="Michael"
-                                    value={registerData.middleName}
-                                    onChange={(e) => setRegisterData({ ...registerData, middleName: e.target.value })}
                                 />
                                 <Input
                                     label="Last Name"
@@ -312,13 +329,33 @@ export default function AuthPage() {
                             </div>
 
                             <Input
-                                label="Official Unijos Email"
+                                label="Middle Name"
+                                type="text"
+                                icon={User}
+                                placeholder="Michael"
+                                value={registerData.middleName}
+                                onChange={(e) => setRegisterData({ ...registerData, middleName: e.target.value })}
+                                required
+                            />
+
+                            <Input
+                                label="Email Address"
                                 type="email"
                                 icon={Mail}
-                                placeholder="staff.name@unijos.edu.ng"
+                                placeholder="your.email@example.com"
                                 value={registerData.email}
                                 onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                                 error={errors.email}
+                                required
+                            />
+
+                            <Input
+                                label="Phone Number"
+                                type="tel"
+                                placeholder="080123456789"
+                                value={registerData.phone}
+                                onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
+                                error={errors.phone}
                                 required
                             />
 
@@ -505,24 +542,14 @@ export default function AuthPage() {
                                         required
                                     />
                                     <span className="text-sm text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
-                                        I agree to the{' '}
-                                        <a
-                                            href="https://www.google.com/search?q=cooperative+society+bylaws+nigeria"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary hover:underline font-semibold"
+                                        I have read and agree to the{' '}
+                                        <button
+                                            type="button"
+                                            onClick={() => setByeLawModalOpen(true)}
+                                            className="text-primary hover:underline font-semibold inline-flex items-center gap-1"
                                         >
-                                            Terms and Conditions
-                                        </a>
-                                        {' '}and{' '}
-                                        <a
-                                            href="https://www.google.com/search?q=cooperative+society+bylaws+nigeria"
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-primary hover:underline font-semibold"
-                                        >
-                                            By-laws
-                                        </a>
+                                            Bye-laws and Terms
+                                        </button>
                                         {' '}of AWSLMCSL Cooperative Society
                                     </span>
                                 </label>
@@ -531,8 +558,7 @@ export default function AuthPage() {
                             <Button
                                 type="submit"
                                 loading={loading}
-                                className="mt-4"
-                                fullWidth
+                                className="mt-4 w-full"
                                 disabled={!agreedToTerms || loading}
                             >
                                 Create Account
@@ -545,7 +571,7 @@ export default function AuthPage() {
                         <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800/30">
                             <Info className="text-primary shrink-0" size={20} />
                             <p className="text-xs text-[#4c739a] dark:text-gray-300 leading-snug">
-                                <strong>New Staff?</strong> Ensure you have your active @unijos.edu.ng email ready. Registration involves a one-time membership fee.
+                                <strong>New Member?</strong> Registration involves a one-time membership fee. Contact admin if you need assistance.
                             </p>
                         </div>
 
@@ -561,6 +587,9 @@ export default function AuthPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Bye-Law Modal */}
+            <ByeLawModal isOpen={byeLawModalOpen} onClose={() => setByeLawModalOpen(false)} />
         </div>
     )
 }

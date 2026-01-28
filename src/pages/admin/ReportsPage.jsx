@@ -6,6 +6,8 @@ import { db } from '../../lib/firebase'
 import { exportToPDF, exportToExcel } from '../../utils/exportUtils'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
+import SkeletonLoader from '../../components/ui/SkeletonLoader'
+import EmptyState from '../../components/ui/EmptyState'
 
 export default function AdminReportsPage() {
     const [reportType, setReportType] = useState('financial')
