@@ -72,7 +72,8 @@ gcloud services api-keys update "$KEY_NAME" \
   --api-target=service=firestore.googleapis.com \
   --api-target=service=firebasestorage.googleapis.com \
   --api-target=service=fcm.googleapis.com \
-  --api-target=service=identitytoolkit.googleapis.com
+  --api-target=service=identitytoolkit.googleapis.com \
+  --api-target=service=firebaseinstallations.googleapis.com
 
 echo ""
 echo "✅ API key restrictions applied successfully!"
@@ -88,6 +89,7 @@ echo "   - Firebase Authentication"
 echo "   - Cloud Firestore"
 echo "   - Firebase Storage"
 echo "   - Firebase Cloud Messaging"
+echo "   - Firebase Installations"
 echo "   - Identity Toolkit"
 echo ""
 echo "⏰ Wait 5-10 minutes for changes to propagate globally"
